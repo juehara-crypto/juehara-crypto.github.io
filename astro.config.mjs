@@ -1,4 +1,4 @@
-// @ts-check
+﻿// @ts-check
 
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
@@ -6,7 +6,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://example.com',
+	site: 'https://juehara-crypto.github.io',
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{
