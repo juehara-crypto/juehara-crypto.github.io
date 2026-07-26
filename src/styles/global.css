@@ -26,11 +26,11 @@ body {
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	color: rgb(var(--gray-dark));
-	font-size: 20px;
+	font-size: 16px;
 	line-height: 1.7;
 }
 main {
-	width: 720px;
+	width: 860px;
 	max-width: calc(100% - 2em);
 	margin: auto;
 	padding: 3em 1em;
@@ -46,19 +46,19 @@ h6 {
 	line-height: 1.2;
 }
 h1 {
-	font-size: 3.052em;
+	font-size: 1.65em;
 }
 h2 {
-	font-size: 2.441em;
+	font-size: 1.53em;
 }
 h3 {
-	font-size: 1.953em;
+	font-size: 1.29em;
 }
 h4 {
-	font-size: 1.563em;
+	font-size: 1.10em;
 }
 h5 {
-	font-size: 1.25em;
+	font-size: 1.00em;
 }
 strong,
 b {
@@ -71,10 +71,12 @@ a:hover {
 	color: var(--accent);
 }
 p {
-	margin-bottom: 1em;
+	margin-top: 1.2em;
+	margin-bottom: 1.2em;
 }
 .prose p {
-	margin-bottom: 2em;
+	margin-top: 16px;
+	margin-bottom: 16px;
 }
 textarea {
 	width: 100%;
@@ -85,6 +87,20 @@ input {
 }
 table {
 	width: 100%;
+		border-collapse: collapse;
+}
+table th,
+table td {
+	border: 1px solid rgb(var(--gray-light));
+	padding: 0.5em 1em;
+	vertical-align: top;
+	word-break: keep-all;
+}
+table td code {
+	white-space: nowrap;
+}
+table th {
+	background-color: rgb(var(--gray-light));
 }
 img {
 	max-width: 100%;
