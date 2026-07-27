@@ -40,7 +40,7 @@ relatedSeries: ''
 
 ## 1. はじめに
 
-**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**では、shellモジュールが構造的に冪等判定できない理由を説明しました。shellモジュールはコマンドを実行するだけで、現在の状態を観測する仕組みを持っていません。そのため「実行したこと」自体を `changed` として報告します。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** では、shellモジュールが構造的に冪等判定できない理由を説明しました。shellモジュールはコマンドを実行するだけで、現在の状態を観測する仕組みを持っていません。そのため「実行したこと」自体を `changed` として報告します。
 
 今回はその対比として、`file` / `copy` / `template` モジュールが「変更不要」をどのように判断しているのかを見ていきます。
 
