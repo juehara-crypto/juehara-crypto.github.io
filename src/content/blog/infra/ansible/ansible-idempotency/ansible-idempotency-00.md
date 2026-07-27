@@ -340,7 +340,7 @@ server01 : ok=5  changed=2  unreachable=0  failed=0
 
 ---
 
-📑 連載の移動 **前の記事：【Ansible編】第10回 **※近日公開予定** ｜ [次の記事：【冪等性編】 第1回]()**
+📑 連載の移動 **前の記事：【Ansible編】第10回 **※近日公開予定** ｜ [次の記事：【冪等性編】 第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**
 
 ---
 
@@ -362,7 +362,7 @@ server01 : ok=5  changed=2  unreachable=0  failed=0
 | 回    | タイトル                            | 内容（概要）                                                                                               |
 | ---- | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-00/)**  | なぜAnsibleは「何度実行しても安全」だと思われているのか | 冪等性（idempotency）の本来の意味を整理し、「同じコマンドを繰り返せる」ことと「状態が収束する」ことの違いを理解する。                                     |
-| 第1回  | shellモジュールはなぜ“状態”を扱えないのか        | shell/command が desired state を持てない理由を構造から整理する。changed_when は表示制御であり、冪等性保証ではないことを理解する。               |
+| **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**  | shellモジュールはなぜ“状態”を扱えないのか        | shell/command が desired state を持てない理由を構造から整理する。changed_when は表示制御であり、冪等性保証ではないことを理解する。               |
 | 第2回  | なぜAnsible moduleは「変更不要」を判断できるのか | file/copy/template などの module が、現在状態と desired state の差分比較によって動作していることを理解する。Ansibleが宣言的管理に見える理由を整理する。 |
 | 第3回  | なぜファイル操作は簡単に非冪等になるのか            | 改行コード、owner/group、Jinja2レンダリング差分など、「見えない差分」が changed を発生させる構造を理解する。                          |
 | 第4回  | なぜ“最新化”は冪等性を壊すのか                | yum/apt の state: latest やバージョン未固定が、再実行ごとに状態を変化させる理由を理解する。desired state と「現在の最新版」は別物であることを学ぶ。         |
