@@ -7,7 +7,7 @@ tags: ['Ansible', '冪等性', 'idempotency', '構成管理']
 seriesId: 'ansible-idempotency'
 seriesNo: 0
 prevPost: ''
-nextPost: 'http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/'
 relatedSeries: ''
 ---
 

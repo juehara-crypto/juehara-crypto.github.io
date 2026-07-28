@@ -7,7 +7,7 @@ tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command']
 seriesId: 'ansible-idempotency'
 seriesNo: 2
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/'
-nextPost: 'http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/'
 relatedSeries: ''
 ---
 
