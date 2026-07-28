@@ -65,7 +65,7 @@ Ansibleの実行結果で `changed=1` を見ると、「変更された」とい
 
 ---
 
-### 3. notify と handler の仕組み
+## 3. notify と handler の仕組み
 
 `notify` はタスクに付与するキーワードで、そのタスクが `changed=1` になったときに指定した `handler` を呼び出します。
 
