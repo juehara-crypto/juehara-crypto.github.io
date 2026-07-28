@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'yum/apt の state: latest やバージョン未固定が、再実行ごとに状態を変化させる理由を理解する。desired state と「現在の最新版」は別物であることを学ぶ。'
 pubDate: '2026-07-27'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command']
+tags: ['Ansible', '冪等性', 'idempotency', 'desired state', 'state-present', 'state-latest']
 seriesId: 'ansible-idempotency'
 seriesNo: 4
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/'

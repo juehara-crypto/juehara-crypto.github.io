@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'file/copy/template などの module が、現在状態と desired state の差分比較によって動作していることを理解する。Ansibleが宣言的管理に見える理由を整理する。'
 pubDate: '2026-07-27'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command']
+tags: ['Ansible', '冪等性', 'idempotency', 'file', 'copy', 'template', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 2
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/'

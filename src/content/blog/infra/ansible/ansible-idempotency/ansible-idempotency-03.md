@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: '改行コード、owner/group、Jinja2レンダリング差分など、「見えない差分」が changed を発生させる構造を理解する。'
 pubDate: '2026-07-27'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command']
+tags: ['Ansible', '冪等性', 'idempotency', 'Jinja2 whitespace', 'checksum', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 3
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-02/'

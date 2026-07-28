@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'service/systemd/handler の notify 連鎖を通して、「変更検知」がどのように状態遷移を引き起こすのかを理解する。reload/restart の違いも整理する。'
 pubDate: '2026-07-28'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'notify', 'handler']
+tags: ['Ansible', '冪等性', 'idempotency', 'notify', 'handler', 'changed', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 5
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/'

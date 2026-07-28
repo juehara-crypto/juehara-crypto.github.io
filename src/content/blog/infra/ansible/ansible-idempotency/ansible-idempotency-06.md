@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'lineinfile は「状態管理」ではなく「部分パッチ」である。正規表現・重複挿入・文脈依存編集によって冪等性が崩れる構造を理解する。'
 pubDate: '2026-07-28'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'lineinfile', 'insertafter', 'insertbefore']
+tags: ['Ansible', '冪等性', 'idempotency', 'lineinfile', 'insertafter', 'insertbefore', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 6
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/'

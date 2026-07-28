@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'shell/commandモジュールがdesired stateを持てない理由を構造から整理する。changed_whenは表示制御であり、冪等性保証ではないことを理解する。'
 pubDate: '2026-07-27'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command']
+tags: ['Ansible', '冪等性', 'idempotency', 'shell', 'command', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 1
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-00/'

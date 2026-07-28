@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'Ansibleは冪等だから何回実行しても大丈夫は本当か。冪等性の本来の意味と「状態が収束する」ことの違いを、ShellとAnsibleの設計思想の差から整理する。'
 pubDate: '2026-07-26'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', '構成管理']
+tags: ['Ansible', '冪等性', 'idempotency', '構成管理', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 0
 prevPost: ''
