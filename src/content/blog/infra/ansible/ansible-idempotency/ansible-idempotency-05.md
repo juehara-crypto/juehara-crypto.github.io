@@ -433,7 +433,7 @@ handler実行（restart/reload）
 
 ---
 
-📑 連載の移動　**[前の記事：第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)　｜　[次の記事：第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)**
+📑 連載の移動　**[前の記事：【冪等性編】 第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)　｜　[次の記事：【冪等性編】 第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)**
 
 ---
 

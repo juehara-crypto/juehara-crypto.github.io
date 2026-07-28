@@ -685,7 +685,7 @@ Ansibleには `notify` と `handler` という仕組みがあります。タス�
 
 ---
 
-📑 連載の移動　**[前の記事：第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)　｜　[次の記事：第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)**
+📑 連載の移動　**[前の記事：【冪等性編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)　｜　[次の記事：【冪等性編】 第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)**
 
 ---
 

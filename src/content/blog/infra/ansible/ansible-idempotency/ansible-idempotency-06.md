@@ -495,7 +495,7 @@ OS・ディストリビューション・Python・locale・systemdのバージ�
 
 ---
 
-📑 連載の移動　**[前の記事：第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)　｜　[次の記事：第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)**
+📑 連載の移動　**[前の記事：【冪等性編】 第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)　｜　[次の記事：【冪等性編】 第7回]**
 
 ---
 
