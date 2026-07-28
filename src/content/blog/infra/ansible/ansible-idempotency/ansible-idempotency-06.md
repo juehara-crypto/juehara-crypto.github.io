@@ -487,7 +487,7 @@ timeout=30
 
 次回はさらに別の問題に進みます。Playbookの記述もモジュールの使い方も正しいにもかかわらず、実行する環境によって結果が変わるケースです。
 
-**次回：第7回：なぜ同じPlaybookなのに環境ごとに結果が変わるのか**
+**[次回：第7回：なぜ同じPlaybookなのに環境ごとに結果が変わるのか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)**
 
 OS・ディストリビューション・Python・locale・systemdのバージョン差分によって、同じモジュールの内部動作が変化することがあります。第6回が「編集対象の曖昧さ」であれば、第7回は「実行環境の曖昧さ」を扱います。
 
@@ -495,7 +495,7 @@ OS・ディストリビューション・Python・locale・systemdのバージ�
 
 ---
 
-📑 連載の移動　**[前の記事：【冪等性編】 第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)　｜　[次の記事：【冪等性編】 第7回]**
+📑 連載の移動　**[前の記事：【冪等性編】 第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)　｜　[次の記事：【冪等性編】 第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)**
 
 ---
 
@@ -524,7 +524,7 @@ OS・ディストリビューション・Python・locale・systemdのバージ�
 | **[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)**  | なぜ“最新化”は冪等性を壊すのか                | yum/apt の state: latest やバージョン未固定が、再実行ごとに状態を変化させる理由を理解する。desired state と「現在の最新版」は別物であることを学ぶ。         |
 | **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)**  | なぜサービス制御は再起動ループを生むのか            | service/systemd/handler の notify 連鎖を通して、「変更検知」がどのように状態遷移を引き起こすのかを理解する。reload/restart の違いも整理する。       |
 | **[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)**  | なぜlineinfileは“安全そうに見えて危険”なのか    | lineinfile は「状態管理」ではなく「部分パッチ」である。正規表現・重複挿入・文脈依存編集によって冪等性が崩れる構造を理解する。                                 |
-| 第7回  | なぜ同じPlaybookなのに環境ごとに結果が変わるのか    | OS・ディストリビューション・systemd・Python・locale 差分によって、module の内部動作が変化することを理解する。                                |
+| **[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)**  | なぜ同じPlaybookなのに環境ごとに結果が変わるのか    | OS・ディストリビューション・systemd・Python・locale 差分によって、module の内部動作が変化することを理解する。                                |
 | 第8回  | なぜタスクの依存関係は冪等性を壊すのか             | handler、register、条件分岐、タスク順序によって「前回実行結果」に依存したPlaybookが生まれる。状態遷移が閉じなくなる理由を整理する。                        |
 | 第9回  | 冪等性はどうやって検証すべきなのか               | check mode の限界、diff mode、molecule、CI、自動テストを通して、「2回目 changed=0」をどう保証するのかを理解する。                        |
 | 第10回 | 「冪等に設計する」とは何を設計することなのか          | imperative（手続き）ではなく declarative（状態宣言）としてPlaybookを設計する考え方を整理し、「壊れない構成管理」の原則を完成させる。                    |
