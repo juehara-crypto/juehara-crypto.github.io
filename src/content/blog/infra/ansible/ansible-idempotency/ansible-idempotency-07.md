@@ -3,7 +3,7 @@ title: '「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造�
 description: 'OS・ディストリビューション・systemd・Python・locale 差分によって、module の内部動作が変化することを理解する。'
 pubDate: '2026-07-28'
 category: 'infra'
-tags: ['Ansible', '冪等性', 'idempotency', 'module', 'Python', 'locale', 'gather_facts']
+tags: ['Ansible', '冪等性', 'idempotency', 'module', 'Python', 'locale', 'gather_facts', 'systemd']
 seriesId: 'ansible-idempotency'
 seriesNo: 7
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/'
