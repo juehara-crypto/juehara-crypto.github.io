@@ -6,7 +6,7 @@ category: 'infra'
 tags: ['Ansible', '冪等性', 'idempotency', 'handler', 'register', 'when']
 seriesId: 'ansible-idempotency'
 seriesNo: 8
-prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/'
+prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/'
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-09/'
 relatedSeries: ''
 ---

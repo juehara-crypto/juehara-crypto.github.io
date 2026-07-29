@@ -6,7 +6,7 @@ category: 'infra'
 tags: ['Ansible', '冪等性', 'idempotency', '--check', '--diff', 'Molecule', 'CI']
 seriesId: 'ansible-idempotency'
 seriesNo: 9
-prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-09/'
+prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/'
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-10/'
 relatedSeries: ''
 ---
