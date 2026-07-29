@@ -341,13 +341,13 @@ Ansibleモジュールの実体はPythonスクリプトです。Ansibleはコン
 
 次回はさらに別の問題に進みます。実行環境が安定していても、タスク間の依存関係そのものが冪等性を壊すケースです。
 
-**次回：第8回：なぜタスクの依存関係は冪等性を壊すのか ※近日公開予定**
+**[次回：第8回：なぜタスクの依存関係は冪等性を壊すのか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)**
 
 `handler` や `register` を使った条件分岐、タスクの実行順序によって、「前回の実行結果」に依存したPlaybookが生まれることがあります。この場合、同じPlaybookを実行しても、直前の実行状態によって結果が変わります。第7回が「環境が状態判定を揺らす」であれば、第8回は「タスク間の依存が状態遷移を揺らす」を扱います。
 
 ---
 
-📑 連載の移動　**[前の記事：【冪等性編】 第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)　｜　次の記事：【冪等性編】 第8回**
+📑 連載の移動　**[前の記事：【冪等性編】 第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)　｜　[次の記事：【冪等性編】 第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)**
 
 ---
 
@@ -367,7 +367,6 @@ Ansibleモジュールの実体はPythonスクリプトです。Ansibleはコン
 ## 9. 連載一覧：「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜 
 
 
-
 | 回                                                                                                          | タイトル                            | 内容（概要）                                                                                               |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-00/)** | なぜAnsibleは「何度実行しても安全」だと思われているのか | 冪等性（idempotency）の本来の意味を整理し、「同じコマンドを繰り返せる」ことと「状態が収束する」ことの違いを理解する。                                     |
@@ -378,7 +377,7 @@ Ansibleモジュールの実体はPythonスクリプトです。Ansibleはコン
 | **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)** | なぜサービス制御は再起動ループを生むのか            | service/systemd/handler の notify 連鎖を通して、「変更検知」がどのように状態遷移を引き起こすのかを理解する。reload/restart の違いも整理する。       |
 | **[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)** | なぜlineinfileは“安全そうに見えて危険”なのか    | lineinfile は「状態管理」ではなく「部分パッチ」である。正規表現・重複挿入・文脈依存編集によって冪等性が崩れる構造を理解する。                                 |
 | **[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)** | なぜ同じPlaybookなのに環境ごとに結果が変わるのか    | OS・ディストリビューション・systemd・Python・locale 差分によって、module の内部動作が変化することを理解する。                                |
-| 第8回                                                                                                        | なぜタスクの依存関係は冪等性を壊すのか             | handler、register、条件分岐、タスク順序によって「前回実行結果」に依存したPlaybookが生まれる。状態遷移が閉じなくなる理由を整理する。                        |
+| **[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)** | なぜタスクの依存関係は冪等性を壊すのか             | handler、register、条件分岐、タスク順序によって「前回実行結果」に依存したPlaybookが生まれる。状態遷移が閉じなくなる理由を整理する。                        |
 | 第9回                                                                                                        | 冪等性はどうやって検証すべきなのか               | check mode の限界、diff mode、molecule、CI、自動テストを通して、「2回目 changed=0」をどう保証するのかを理解する。                        |
 | 第10回                                                                                                       | 「冪等に設計する」とは何を設計することなのか          | imperative（手続き）ではなく declarative（状態宣言）としてPlaybookを設計する考え方を整理し、「壊れない構成管理」の原則を完成させる。                    |
 
