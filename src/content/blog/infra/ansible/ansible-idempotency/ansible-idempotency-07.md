@@ -6,8 +6,8 @@ category: 'infra'
 tags: ['Ansible', '冪等性', 'idempotency', 'module', 'Python', 'locale', 'gather_facts', 'systemd']
 seriesId: 'ansible-idempotency'
 seriesNo: 7
-prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/'
-nextPost: ''
+prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/'
 relatedSeries: ''
 ---
 
