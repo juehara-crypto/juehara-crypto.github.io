@@ -7,7 +7,7 @@ tags: ['Ansible', '冪等性', 'idempotency', 'notify', 'handler', 'changed', 'd
 seriesId: 'ansible-idempotency'
 seriesNo: 5
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/'
 relatedSeries: ''
 ---
 

@@ -7,7 +7,7 @@ tags: ['Ansible', '冪等性', 'idempotency', 'lineinfile', 'insertafter', 'inse
 seriesId: 'ansible-idempotency'
 seriesNo: 6
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/'
 relatedSeries: ''
 ---
 
