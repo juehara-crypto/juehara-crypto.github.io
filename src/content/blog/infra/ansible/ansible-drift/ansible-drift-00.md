@@ -5,7 +5,7 @@ pubDate: '2026-07-30'
 category: 'infra'
 tags: ['Ansible', 'ドリフト', '構成管理']
 seriesId: 'ansible-drift'
-seriesNo: 10
+seriesNo: 0
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-10/'
 nextPost: ''
 relatedSeries: ''
