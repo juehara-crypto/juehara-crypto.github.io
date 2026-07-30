@@ -379,7 +379,7 @@ Ansibleが提供する仕組みは、冪等な設計を選択しやすくする�
 
 ---
 
-📑 連載の移動　**[前の記事：【冪等性編】 第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-09/)**
+📑 連載の移動　**[前の記事：【冪等性編】 第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-09/)**　｜　**[次の記事：【構成ドリフト編】 第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-00/)**
 
 ---
 
