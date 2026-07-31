@@ -7,7 +7,7 @@ tags: ['Ansible', 'ドリフト', '構成管理', 'ドリフトを防ぐ設計',
 seriesId: 'ansible-drift'
 seriesNo: 4
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-03/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/'
 relatedSeries: ''
 ---
 
@@ -201,7 +201,7 @@ flowchart TD
 
 ---
 
-📑 連載の移動　**[前の記事：【構成ドリフト編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)　｜　次の記事：【Molecule編】 第0回** **近日公開予定**
+📑 連載の移動　**[前の記事：【構成ドリフト編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)　｜　[次の記事：【Molecule編】 第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**
 
 ---
 
