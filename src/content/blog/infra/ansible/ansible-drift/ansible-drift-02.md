@@ -7,7 +7,7 @@ tags: ['Ansible', 'ドリフト', '構成管理', 'template', 'lineinfile', '手
 seriesId: 'ansible-drift'
 seriesNo: 2
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-01/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-03/'
 relatedSeries: ''
 ---
 
