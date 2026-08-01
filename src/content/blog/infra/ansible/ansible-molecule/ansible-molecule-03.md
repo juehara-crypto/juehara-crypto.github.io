@@ -7,7 +7,7 @@ tags: ['Ansible', '構成管理', 'Molecule', '冪等性計', 'テスト', 'ansi
 seriesId: 'ansible-molecule'
 seriesNo: 3
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-03/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/'
 relatedSeries: ''
 ---
 
@@ -412,11 +412,11 @@ no-changed-when: Commands should not change things if nothing needs doing.
 
 次回は、静的チェックと動的テストの両方を整えた状態を前提として、テストが失敗したときに何が分かるのかを扱います。GitHub ActionsなどのCIにMoleculeとansible-lintを組み込み、「変更のたびに確認し続ける」仕組みについても整理します。
 
-**次回：第4回：テストが失敗したとき何が分かるのか・CIに組み込む ※近日公開予定**
+**[次回：第4回：テストが失敗したとき何が分かるのか・CIに組み込む](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/)**
 
 ---
 
-📑 連載の移動　**[前の記事：【Molecule編】 第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)　｜　次の記事：【Molecule編】 第4回** **近日公開予定**
+📑 連載の移動　**[前の記事：【Molecule編】 第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)　｜　[次の記事：【Molecule編】 第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/)**
 
 ---
 
@@ -440,7 +440,7 @@ no-changed-when: Commands should not change things if nothing needs doing.
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)**|Moleculeは何をしているのか|create・converge・idempotency・verify・destroyという各フェーズが何のためにあるかを、冪等性の文脈と接続しながら理解する。「2回実行してchanged=0」という手動確認をMoleculeが自動化している構造であることを整理する。|
 |**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)**|冪等性テストを自動化する|冪等性シリーズで作成したPlaybookをMoleculeでテストする構成を実機で確認し、1回目と2回目の実行で何が確認されているかを読み取る。idempotencyフェーズで`changed`が発生した場合の表示を意図的に再現し、テストが失敗するとはどういう状態かを理解する。|
 |**[第3回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)**|ansible-lintはなぜそのルールを定めているのか|ansible-lintのルールを設計品質の静的確認として位置づけ、代表的なルールカテゴリが冪等性・ドリフトの問題とどう接続しているかを理解する。MoleculeのverifyフェーズにAnsible-lintを組み込み、テストパイプラインの一部として位置づける。|
-|第4回|テストが失敗したとき何が分かるのか・CIに組み込む|Moleculeのテスト失敗パターンを、設計上の何が問題なのかというフィードバックとして読む視点を理解する。GitHub ActionsなどのCIにMoleculeとansible-lintを組み込み、「変更のたびに確認し続ける」仕組みを整理する。|
+|**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/)**|テストが失敗したとき何が分かるのか・CIに組み込む|Moleculeのテスト失敗パターンを、設計上の何が問題なのかというフィードバックとして読む視点を理解する。GitHub ActionsなどのCIにMoleculeとansible-lintを組み込み、「変更のたびに確認し続ける」仕組みを整理する。|
 
 ---
 
