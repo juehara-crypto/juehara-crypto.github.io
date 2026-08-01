@@ -133,7 +133,7 @@ file・templateモジュール等でowner・group・modeといったパーミッ
 
 ## 5. MoleculeのverifyフェーズにAnsible-lintを組み込む
 
-第1回では、Molecule全体の5フェーズを整理しました。
+**[第1回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)** では、Molecule全体の5フェーズを整理しました。
 
 ```mermaid
 flowchart TD
@@ -399,7 +399,7 @@ no-changed-when: Commands should not change things if nothing needs doing.
 - ansible-lintのルールは大きく「冪等性の維持」と「保守性の維持」という2つの目的に分類できる
 - command-instead-of-module・no-changed-when・risky-file-permissionsは、いずれも冪等性シリーズで確認してきた問題と直接接続している。このうちno-changed-whenは、verifyフェーズの実機検証でも実際に検出を確認した
 - yaml構文ルールは冪等性そのものには関わらず、前シリーズとの直接の接続元もない。保守性の観点から独立したルールとして整理した
-- 第1回で整理したMolecule全体の5フェーズのうち、本シリーズでは以降ansible-lint→converge→idempotence→verifyの4段階を中心に扱う。destroyの役割自体は否定しない
+- **[第1回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)** で整理したMolecule全体の5フェーズのうち、本シリーズでは以降ansible-lint→converge→idempotence→verifyの4段階を中心に扱う。destroyの役割自体は否定しない
 ---
 
 [↑ 目次に戻る](#目次)
@@ -439,7 +439,7 @@ no-changed-when: Commands should not change things if nothing needs doing.
 |**[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**|なぜPlaybookにテストが必要なのか|「実行して成功した」と「正しい」は別の概念であることを整理し、手動確認の構造的な限界を理解する。テストを持つことの本質が「確認を仕組みに組み込むこと」であることを理解する。|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)**|Moleculeは何をしているのか|create・converge・idempotency・verify・destroyという各フェーズが何のためにあるかを、冪等性の文脈と接続しながら理解する。「2回実行してchanged=0」という手動確認をMoleculeが自動化している構造であることを整理する。|
 |**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)**|冪等性テストを自動化する|冪等性シリーズで作成したPlaybookをMoleculeでテストする構成を実機で確認し、1回目と2回目の実行で何が確認されているかを読み取る。idempotencyフェーズで`changed`が発生した場合の表示を意図的に再現し、テストが失敗するとはどういう状態かを理解する。|
-|第3回|ansible-lintはなぜそのルールを定めているのか|ansible-lintのルールを設計品質の静的確認として位置づけ、代表的なルールカテゴリが冪等性・ドリフトの問題とどう接続しているかを理解する。MoleculeのverifyフェーズにAnsible-lintを組み込み、テストパイプラインの一部として位置づける。|
+|**[第3回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)**|ansible-lintはなぜそのルールを定めているのか|ansible-lintのルールを設計品質の静的確認として位置づけ、代表的なルールカテゴリが冪等性・ドリフトの問題とどう接続しているかを理解する。MoleculeのverifyフェーズにAnsible-lintを組み込み、テストパイプラインの一部として位置づける。|
 |第4回|テストが失敗したとき何が分かるのか・CIに組み込む|Moleculeのテスト失敗パターンを、設計上の何が問題なのかというフィードバックとして読む視点を理解する。GitHub ActionsなどのCIにMoleculeとansible-lintを組み込み、「変更のたびに確認し続ける」仕組みを整理する。|
 
 ---
