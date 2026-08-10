@@ -6,7 +6,7 @@ category: 'infra'
 tags: ['Ansible', '冪等性', 'idempotency', '構成管理', 'desired state']
 seriesId: 'ansible-idempotency'
 seriesNo: 0
-prevPost: ''
+prevPost: 'https://qiita.com/juehara-crypto/items/90977816de5c6a84d280'
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/'
 relatedSeries: ''
 ---
