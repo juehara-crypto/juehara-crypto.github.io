@@ -340,7 +340,7 @@ server01 : ok=5  changed=2  unreachable=0  failed=0
 
 ---
 
-📑 連載の移動 **前の記事：[【Ansible編】第10回](https://qiita.com/juehara-crypto/items/90977816de5c6a84d280) **※近日公開予定** ｜ [次の記事：【冪等性編】 第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**
+📑 連載の移動 **前の記事：[【Ansible編】第10回](https://qiita.com/juehara-crypto/items/90977816de5c6a84d280) ｜ [次の記事：【冪等性編】 第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**
 
 ---
 
