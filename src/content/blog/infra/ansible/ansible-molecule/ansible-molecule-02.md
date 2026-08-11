@@ -460,7 +460,7 @@ ERROR    Idempotence test failed because of the following tasks:
 
 ---
 
-📑 連載の移動　**[前の記事：【Molecule編】 第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)　｜　[次の記事：【Molecule編】 第3回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)**
+📑 連載の移動　**[前の記事：【Molecule編】 第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)　｜　[次の記事：【Molecule編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)**
 
 
 ---
