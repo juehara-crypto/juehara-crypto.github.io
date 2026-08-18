@@ -47,7 +47,7 @@ table td:first-child {
 
 ## 1. はじめに
 
-前回、TerraformのJSON出力をAnsibleが動的インベントリとして認識できるようにしました。接続先の情報が正しく渡るようになった状態で次に直面するのが、SSH接続そのものが拒否されるというトラブルです。
+**[前回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)** 、TerraformのJSON出力をAnsibleが動的インベントリとして認識できるようにしました。接続先の情報が正しく渡るようになった状態で次に直面するのが、SSH接続そのものが拒否されるというトラブルです。
 
 Terraformで構築した環境にAnsibleで接続しようとした際、以下のようなエラーに遭遇することがあります。
 
