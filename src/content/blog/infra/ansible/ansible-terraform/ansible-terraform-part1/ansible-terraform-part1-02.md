@@ -7,7 +7,7 @@ tags: ['Ansible', 'Terraform', 'IaC', 'SSH', 'Docker']
 seriesId: 'ansible-terraform-part1'
 seriesNo: 2
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/'
-nextPost: 'hhttps://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/'
 relatedSeries: ''
 ---
 

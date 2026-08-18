@@ -6,8 +6,8 @@ category: 'infra'
 tags: ['Ansible', 'Terraform', 'IaC', 'Python', 'Docker']
 seriesId: 'ansible-terraform-part1'
 seriesNo: 7
-prevPost: 'http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/'
-nextPost: 'http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/'
+prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/'
 relatedSeries: ''
 ---
 
