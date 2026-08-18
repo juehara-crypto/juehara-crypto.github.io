@@ -7,7 +7,7 @@ tags: ['Ansible', '構成管理', 'Molecule', '冪等性計', 'テスト', 'ansi
 seriesId: 'ansible-molecule'
 seriesNo: 4
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/'
 relatedSeries: ''
 ---
 
@@ -453,11 +453,11 @@ flowchart TD
 
 次のシリーズでは、この問いに向き合います。
 
-**次回シリーズ：「Ansible×Terraform編」** **※近日公開予定**
+**次回シリーズ：「Ansible×Terraform編」**
 
 ---
 
-📑 連載の移動　**[前の記事：【Molecule編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)　｜　次の記事：【「Ansible×Terraform」編】 第1回** **※近日公開予定**
+📑 連載の移動　**[前の記事：【Molecule編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)　｜　[次の記事：【「Ansible×Terraform」編】第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**
 
 ---
 
