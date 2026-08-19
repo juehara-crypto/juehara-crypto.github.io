@@ -12,6 +12,18 @@ relatedSeries: ''
 ---
 
 
+<style>
+table th,
+table td {
+    word-break: normal;
+}
+table td:first-child {
+    white-space: nowrap;
+}
+</style>
+
+
+
 > **🗺️ 初めての方・シリーズの全体像を知りたい方はこちら**
 >
 > シリーズ全体については、以下のまとめブログで整理しています。

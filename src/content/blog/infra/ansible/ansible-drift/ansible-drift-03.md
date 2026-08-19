@@ -11,6 +11,17 @@ nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ans
 relatedSeries: ''
 ---
 
+<style>
+table th,
+table td {
+    word-break: normal;
+}
+table td:first-child {
+    white-space: nowrap;
+}
+</style>
+
+
 
 > **🗺️ 初めての方・シリーズの全体像を知りたい方はこちら**
 > 
