@@ -449,11 +449,11 @@ forks = 5
 
 第11回では、構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が生じる問題を取り上げます。ドリフトシリーズで扱った内容が、Ansible×Terraform環境でどのように現れるかを見ていきます。
 
-**次回：第11回：手動変更による構成ドリフトの検知と同期手法**
+**[次回：第11回：手動変更による構成ドリフトの検知と同期手法](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**
 
 ---
 
-📑 連載の移動　**[前の記事：【Ansible×Terraform編】第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)　｜　次の記事：【Ansible×Terraform編】第11回**
+📑 連載の移動　**[前の記事：【Ansible×Terraform編】第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)　｜　[次の記事：【Ansible×Terraform編】第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**
 
 ---
 
