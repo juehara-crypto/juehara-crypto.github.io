@@ -7,7 +7,7 @@ tags: ['Ansible', 'Terraform', 'IaC', 'テンプレート', 'Docker']
 seriesId: 'ansible-terraform-part1'
 seriesNo: 10
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/'
-nextPost: ''
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/'
 relatedSeries: ''
 ---
 
