@@ -7,7 +7,7 @@ tags: ['Ansible', 'Terraform', 'ライフサイクル', '初期化スクリプ�
 seriesId: 'ansible-terraform-part2'
 seriesNo: 12
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/'
-nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/'
+nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/'
 relatedSeries: ''
 ---
 
