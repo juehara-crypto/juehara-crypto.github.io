@@ -579,7 +579,7 @@ Passed: 0 failure(s), 0 warning(s) in 1 files processed of 1 encountered. Last p
 
 **[第24回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-24/)** では、Terraformの並列リソース生成とAnsibleのforks並列実行が同じコントロールホスト上で重なった場合に、CPU、メモリ、ファイルディスクリプタ等が構造的に圧迫されうる仕組みを整理しました。**[第25回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-25/)** となる今回は、実行ホスト自体のリソースという制約から離れ、HCL構文チェックとansible-lintという、静的解析ツール同士のルールが競合する問題を扱いました。`templatefile`によるAnsible成果物の動的生成という構成を起点に、HCL側の整形とYAML側の整形が別々の基準で評価される構造を、実機検証を交えて確認しました。
 
-次回は、静的解析ツール同士の競合という「実行前」の問題から離れ、`sudo`実行時のパスワード入力プロンプトによって、Terraform経由の非対話実行がバックグラウンドで停止してしまう問題を扱います。
+次回は、静的解析ツール同士の競合という「実行前」の問題から離れ、Terraformの`local-exec`経由でAnsibleの`become`を実行する構成において、パスワード入力を要求するオプションを指定した場合に限り、非対話実行環境で処理が無応答のまま停止してしまう問題を扱います。
 
 **[次回：第26回：管理者権限（sudo）実行時におけるパスワード入力のプロンプト停止](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-26/)**
 
@@ -612,7 +612,7 @@ Passed: 0 failure(s), 0 warning(s) in 1 files processed of 1 encountered. Last p
 |**[第23回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-23/)**|大容量ファイル転送、重いタスク実行時におけるSSHタイムアウト|Ansibleで大きなアセットや大量のパッケージを転送、適用する際、Terraform側のプロビジョナータイムアウトに引っかかる可能性がある問題を扱う。|
 |**[第24回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-24/)**|並列実行時における実行ホストのシステムリソース枯渇対策|`parallelism`や`forks`設定により、大量のリソース構築とAnsibleプロビジョニングが同時に走った場合、ホストのCPU、メモリ、ファイルディスクリプタが枯渇しうる問題を扱う。|
 |**[第25回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-25/)**|構文チェックツール（HCL構文、ansible-lint）の競合緩和|両ツールの静的解析ツール（`terraform fmt`、`ansible-lint`）を導入した際、コード記述ルールや命名規則の不一致でCIが通らなくなる問題。|
-|**[第26回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-26/)**|管理者権限（sudo）実行時におけるパスワード入力のプロンプト停止|Terraformの`local-exec`や非対話シェルからAnsibleを実行した際、`sudo: a terminal is required to read the password`で停止する問題。|
+|**[第26回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-26/)**|管理者権限（sudo）実行時におけるパスワード入力のプロンプト停止|Terraformのlocal-exec経由でAnsibleのbecomeを実行する際、パスワード入力を要求するオプションを指定した場合に限り、非対話実行環境で処理が無応答のまま停止する問題。|
 |**[第27回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-27/)**|再起動、再生成に伴うプロビジョニング断絶|Ansibleでカーネル更新等のためにOS再起動（またはコンテナ再起動、再生成）を要求した際、接続が途切れTerraformがエラー扱いする問題。|
 |**[第28回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-28/)**|異種OS（Windowsターゲット）混在環境における接続プロトコルの制約|SSHではなくWinRM等を用いる特殊プロトコル環境での接続、権限エラー。実務でWindows ServerをAnsible×Terraformで管理する際の構造的注意点を扱う概念解説回。|
 |**[第29回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-29/)**|プロキシ環境等における外部コレクション（Ansible Galaxy）の取得失敗|インフラ構築処理の途中で外部ネットワーク（Ansible Galaxy等）への依存が切れ、Terraformの処理全体が失敗する問題。|
