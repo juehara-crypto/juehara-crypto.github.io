@@ -305,16 +305,16 @@ server01 : ok=5  changed=2  unreachable=0  failed=0
 
 |回|テーマ|扱う内容|
 |---|---|---|
-|第1回|shell/command モジュール|なぜ状態を持てないのか|
-|第2回|file/copy/template|なぜ差分比較ができるのか|
-|第3回|ファイル操作|見えない差分が changed を起こす仕組み|
-|第4回|パッケージ管理|`state: latest` が冪等性を壊す理由|
-|第5回|サービス制御|handler 連鎖と再起動ループ|
-|第6回|lineinfile|なぜ「安全そうに見えて危険」なのか|
-|第7回|環境差分|同じ Playbook が環境ごとに異なる動きをする理由|
-|第8回|タスクの依存関係|実行順序と条件分岐が冪等性を崩す構造|
-|第9回|検証方法|冪等性をどう確認するか|
-|第10回|設計の考え方|冪等に設計するとはどういうことか|
+|**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**|shell/command モジュール|なぜ状態を持てないのか|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-02/)**|file/copy/template|なぜ差分比較ができるのか|
+|**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)**|ファイル操作|見えない差分が changed を起こす仕組み|
+|**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)**|パッケージ管理|`state: latest` が冪等性を壊す理由|
+|**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)**|サービス制御|handler 連鎖と再起動ループ|
+|**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)**|lineinfile|なぜ「安全そうに見えて危険」なのか|
+|**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)**|環境差分|同じ Playbook が環境ごとに異なる動きをする理由|
+|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)**|タスクの依存関係|実行順序と条件分岐が冪等性を崩す構造|
+|**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-09/)**|検証方法|冪等性をどう確認するか|
+|**[第10回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-10/)**|設計の考え方|冪等に設計するとはどういうことか|
 
 各回は「なぜそうなるのか」という構造の説明を軸にしています。トラブルの対処法だけでなく、発生する仕組みを理解することで、同種の問題に応用できるようにしていきます。
 

@@ -596,7 +596,7 @@ desired stateと比較する
 
 `changed=1` は「差分があったので変更した」という結果です。`changed=0` は「差分がなかったので何もしなかった」という結果です。どちらも差分検出の結果として返されています。
 
-第1回で確認した `changed_when: false` の場合と比較すると、意味の違いが明確になります。冪等なモジュールの `ok` は「差分なし」という観測結果を反映しています。`changed_when: false` の `ok` は観測の結果ではなく、表示の設定です。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認した `changed_when: false` の場合と比較すると、意味の違いが明確になります。冪等なモジュールの `ok` は「差分なし」という観測結果を反映しています。`changed_when: false` の `ok` は観測の結果ではなく、表示の設定です。
 
 
 ---
