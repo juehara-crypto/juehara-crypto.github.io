@@ -56,7 +56,7 @@ Ansibleの実行結果で `changed=1` を見ると、「変更された」とい
 
 `changed=1` はAnsible内部で「状態変化イベント」として扱われます。このイベントは `notify` を通じて `handler` を発火させ、サービスの再起動やリロードといった後続の状態遷移を引き起こします。
 
-第1回で確認した `changed_when: false` は、この `changed` の報告を抑制するオプションでした。しかし `changed_when` が制御するのは表示だけではなく、`handler` の発火も合わせて抑制します。つまり `changed` は「表示」と「状態遷移トリガー」の2つの役割を持っています。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認した `changed_when: false` は、この `changed` の報告を抑制するオプションでした。しかし `changed_when` が制御するのは表示だけではなく、`handler` の発火も合わせて抑制します。つまり `changed` は「表示」と「状態遷移トリガー」の2つの役割を持っています。
 
 
 ---
@@ -354,7 +354,7 @@ handlers:
 
 ## 6. 誤差分がrestartを引き起こす
 
-第3回では、`template` モジュールを正しく使っていても意図しない `changed=1` が発生するパターンを取り上げました。Jinja2のwhitespace差分や改行コードの違いが、checksumの差分として検出されるケースです。
+**[第3回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03)** では、`template` モジュールを正しく使っていても意図しない `changed=1` が発生するパターンを取り上げました。Jinja2のwhitespace差分や改行コードの違いが、checksumの差分として検出されるケースです。
 
 この誤差分に `notify` が組み合わさると、意味的には変更がないにもかかわらずサービスが再起動されます。
 
@@ -362,9 +362,9 @@ handlers:
 whitespace差分 → changed=1 → notify発火 → handler実行 → service restart
 ```
 
-第3回で見た「checksumの差分として検出される」という現象が、ここでは「Playbookを実行するたびにサービスが再起動される」という影響として現れます。設定ファイルの内容は変わっていません。しかしAnsibleの観測上は毎回差分が検出されるため、毎回handlerが発火します。
+**[第3回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03)** で見た「checksumの差分として検出される」という現象が、ここでは「Playbookを実行するたびにサービスが再起動される」という影響として現れます。設定ファイルの内容は変わっていません。しかしAnsibleの観測上は毎回差分が検出されるため、毎回handlerが発火します。
 
-なお、第1回で確認したshellモジュールは `desired state` を持たない代わりに `notify` による連鎖も発火しません。`file` / `copy` / `template` のような宣言型モジュールは差分検出と `notify` 連鎖の両方を持っています。そのため誤差分が発生したときの影響範囲は、shellモジュールを直接使う場合より大きくなることがあります。
+なお、**[第1回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01)** で確認したshellモジュールは `desired state` を持たない代わりに `notify` による連鎖も発火しません。`file` / `copy` / `template` のような宣言型モジュールは差分検出と `notify` 連鎖の両方を持っています。そのため誤差分が発生したときの影響範囲は、shellモジュールを直接使う場合より大きくなることがあります。
 
 ---
 
@@ -410,7 +410,7 @@ handler実行（restart/reload）
 - **`notify` はタスクが `changed=1` のときだけ `handler` を呼び出す**。`changed=0` であれば `handler` は発火しない。
 - **`handler` はplay終了後にまとめて遅延実行される**。複数のタスクが同じ `handler` を `notify` しても、そのhandlerは1回だけ実行される。
 - **`reload` と `restart` は状態遷移の重さが異なる**。`reload` はプロセスを維持したまま設定を再読み込みするが、`restart` はプロセスを停止・再生成するため既存の接続が切断される。
-- **誤差分による `changed=1` は意図しないサービス再起動を引き起こす**。第3回で見たwhitespace差分や改行コードの問題は、`notify` が設定されているPlaybookでは再起動の連鎖につながる。
+- **誤差分による `changed=1` は意図しないサービス再起動を引き起こす**。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)** で見たwhitespace差分や改行コードの問題は、`notify` が設定されているPlaybookでは再起動の連鎖につながる。
 - **冪等性が崩れると副作用が連鎖する**。意図しない `changed=1` は `handler` を発火させ、サービスへの実際の影響として現れる。
 
 ---
