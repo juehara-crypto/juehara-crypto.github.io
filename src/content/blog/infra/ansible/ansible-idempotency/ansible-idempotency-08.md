@@ -57,7 +57,7 @@ relatedSeries: ''
 
 このPlaybookは記述として正しく、エラーも出ません。しかし1回目と2回目の実行で動作が変わります。`register` と `when` の組み合わせによって、後続タスクの実行有無が「現在のシステム状態」ではなく「直前タスクの実行結果」に依存しているからです。
 
-`handler` が `changed=1` をトリガーとして状態遷移を引き起こす構造は第5回で実機確認しています。この回では `handler` の仕組みそのものは扱いません。`register` や `when` との組み合わせによって状態遷移がどう複雑化するかを中心に見ていきます。
+`handler` が `changed=1` をトリガーとして状態遷移を引き起こす構造は **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)** で実機確認しています。この回では `handler` の仕組みそのものは扱いません。`register` や `when` との組み合わせによって状態遷移がどう複雑化するかを中心に見ていきます。
 
 
 ---
@@ -68,7 +68,7 @@ relatedSeries: ''
 
 ## 2. Playbookは「静的定義」ではない
 
-Ansibleは宣言型ツールとして説明されることが多いです。`state: present` や `state: started` のような記述は「あるべき状態」を宣言しており、モジュールがその状態との差分を検出して必要な操作だけを行います。この構造が冪等性の基盤になっていることは、第2回で確認しました。
+Ansibleは宣言型ツールとして説明されることが多いです。`state: present` や `state: started` のような記述は「あるべき状態」を宣言しており、モジュールがその状態との差分を検出して必要な操作だけを行います。この構造が冪等性の基盤になっていることは、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-02/)** で確認しました。
 
 しかし `register` / `when` / `notify` を使い始めると、Playbookの性質が変わり始めます。
 
@@ -331,7 +331,7 @@ nginx-1.20.1-28.el9_8.2.rocky.0.1.x86_64
 
 ## 5. handler・register・whenが組み合わさると状態遷移が複雑化する
 
-第5回では、`notify` によってタスクの `changed=1` がhandlerの発火トリガーになる構造を実機で確認しました。単独では予測可能なこの動作も、`register` と `when` が加わると状態遷移の経路が複数に分岐します。
+**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)** では、`notify` によってタスクの `changed=1` がhandlerの発火トリガーになる構造を実機で確認しました。単独では予測可能なこの動作も、`register` と `when` が加わると状態遷移の経路が複数に分岐します。
 
 以下のPlaybookを例にします。
 
@@ -578,7 +578,7 @@ journalctlでnginxの再起動を確認します。
 
 ### ■ 結果
 
-1回目の実行では、両ノードともすべてのタスクが `changed=1` となりました。「設定ファイルを配置する」タスクが `changed=1` を返したため `config_result.changed` が `true` になり、`when` 条件を持つ「追加設定を配置する」タスクも実行されています。両タスクがそれぞれ `notify` を発火させましたが、第5回で確認したとおり同じhandlerへの複数の `notify` は1回に集約され、`RUNNING HANDLER [nginx を再起動する]` が1回だけ実行されています。journalctlを確認すると、両ノードともPlaybook実行（12:59）のタイミングでStop→Startが記録されており、nginxが再起動されています。
+1回目の実行では、両ノードともすべてのタスクが `changed=1` となりました。「設定ファイルを配置する」タスクが `changed=1` を返したため `config_result.changed` が `true` になり、`when` 条件を持つ「追加設定を配置する」タスクも実行されています。両タスクがそれぞれ `notify` を発火させましたが、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)** で確認したとおり同じhandlerへの複数の `notify` は1回に集約され、`RUNNING HANDLER [nginx を再起動する]` が1回だけ実行されています。journalctlを確認すると、両ノードともPlaybook実行（12:59）のタイミングでStop→Startが記録されており、nginxが再起動されています。
 
 2回目の実行では、「設定ファイルを配置する」タスクが両ノードとも `ok`（`changed=0`）となりました。ファイルはすでに配置済みのため差分なしと判断されています。`config_result.changed` が `false` になったため、`when` 条件を持つ「追加設定を配置する」タスクは `skipping` となり実行されませんでした。handlerも発火せず、journalctlの内容は1回目と変わっていません。2回目の実行でnginxが再起動されていないことが確認できます。
 
@@ -655,7 +655,7 @@ Ansibleは宣言型ツールとして説明されますが、`register` と `whe
 
 冪等性の本来の定義は「何回実行しても同じ状態へ収束する」ことです。この定義が成立するためには、Playbookの動作経路が実行回数や実行履歴によらず一定である必要があります。しかし `register` / `when` / `handler` の組み合わせが増えると、「どのタスクが今回の実行でchangedを返したか」という履歴によって動作経路が変わります。経路が増えるほど、すべての経路で同じ最終状態へ収束することの保証は難しくなります。
 
-第5回では `changed=1` が `notify` を通じてhandlerを発火させ、サービスの再起動という副作用を連鎖させる構造を確認しました。第7回では外部環境の差分がモジュールの内部処理を揺らす構造を確認しました。今回確認したのはその内側にある問題です。外部環境が安定していても、Playbook内部の `register` / `when` / `handler` の組み合わせそのものが実行履歴依存の構造を作り出します。
+**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-05/)** では `changed=1` が `notify` を通じてhandlerを発火させ、サービスの再起動という副作用を連鎖させる構造を確認しました。**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)** では外部環境の差分がモジュールの内部処理を揺らす構造を確認しました。今回確認したのはその内側にある問題です。外部環境が安定していても、Playbook内部の `register` / `when` / `handler` の組み合わせそのものが実行履歴依存の構造を作り出します。
 
 ここで重要なのは、これらの機能が問題なのではないという点です。`register` はタスクの実行結果を扱うための正当な機能です。`when` は条件分岐を記述するための正当な機能です。`handler` は変更検知に連動した操作を整理するための正当な機能です。問題は機能そのものではなく、これらの組み合わせが増えることで「実行履歴依存の経路」が増え、状態遷移が閉じなくなることにあります。
 
