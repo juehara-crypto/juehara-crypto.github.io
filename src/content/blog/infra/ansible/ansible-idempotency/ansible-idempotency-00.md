@@ -16,7 +16,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜 シリーズまとめブログ** **※近日公開予定**
+> → **[「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜 シリーズまとめブログ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**
 
 ---
 
@@ -348,7 +348,7 @@ server01 : ok=5  changed=2  unreachable=0  failed=0
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜 シリーズまとめブログ** **※近日公開予定**
+> → **[「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜 シリーズまとめブログ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**
 
 ---
 
