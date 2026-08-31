@@ -61,9 +61,9 @@ relatedSeries: ''
 
 ただし、この確認だけでは不十分なケースがあります。
 
-第4回で扱った `state: latest` のような外部状態に依存するケースがその一つです。2回連続で実行している間はリポジトリが更新されていないため `changed=0` になりますが、時間を置いた再実行ではリポジトリ側に新しいバージョンが追加されていることがあります。「連続2回の実行で確認した」という事実は、外部状態が変化した後の動作を保証しません。
+**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)** で扱った `state: latest` のような外部状態に依存するケースがその一つです。2回連続で実行している間はリポジトリが更新されていないため `changed=0` になりますが、時間を置いた再実行ではリポジトリ側に新しいバージョンが追加されていることがあります。「連続2回の実行で確認した」という事実は、外部状態が変化した後の動作を保証しません。
 
-第8回で扱った `register` / `when` の組み合わせが絡む場合も同様です。1回目が正常完了した後の2回目と、1回目が途中で失敗した後の再実行では、`register` 変数の状態が異なるため別の経路をたどる場合があります。「正常完了後の2回目が `changed=0`」という確認は、失敗からの再実行で同じ経路をたどることを保証していません。
+**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)** で扱った `register` / `when` の組み合わせが絡む場合も同様です。1回目が正常完了した後の2回目と、1回目が途中で失敗した後の再実行では、`register` 変数の状態が異なるため別の経路をたどる場合があります。「正常完了後の2回目が `changed=0`」という確認は、失敗からの再実行で同じ経路をたどることを保証していません。
 
 「2回実行して `changed=0`」という確認は冪等性の確認として有効です。ただし、その確認が成立する前提として「外部状態が安定していること」と「実行経路が1種類に限られること」があります。この2つの前提が崩れるケースでは、追加の確認が必要になります。
 
@@ -82,7 +82,7 @@ relatedSeries: ''
 ansible-playbook -i inventory.ini site.yml --check
 ```
 
-このモードの動作を実機で確認します。第1回で使用したshellモジュールのPlaybookを `--check` で実行してみます。
+このモードの動作を実機で確認します。**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で使用したshellモジュールのPlaybookを `--check` で実行してみます。
 
 ---
 
@@ -125,15 +125,15 @@ PLAY RECAP *********************************************************************
 
 `shell` モジュールのタスクは `--check` 時に `skipping` と表示され、PLAY RECAPでは `skipped=1` として集計されました。`shell` / `command` モジュールはデフォルトで `--check` 時にスキップされます。実行結果は `changed=0` と表示されていますが、これは「差分がなかった」という意味ではなく「タスクが実行されなかった」という意味です。
 
-第1回で確認したとおり、このPlaybookを通常実行すると毎回 `changed=1` になります。`--check` ではその非冪等性を検出できていません。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認したとおり、このPlaybookを通常実行すると毎回 `changed=1` になります。`--check` ではその非冪等性を検出できていません。
 
 ---
 
 `--check` モードには他にも動作上の制約があります。
 
-第8回で扱った `register` / `when` の構成では、`--check` 時の動作が通常実行と異なる場合があります。`--check` モードでは実際の変更が加えられないため、あるタスクが「差分なし」と判定された場合、そのタスクの `register` 変数の `changed` フィールドが `false` になります。後続タスクが `when: some_task.changed` を参照している場合、`--check` 時は「差分なし→`when` 条件が `false`→後続タスクをスキップ」という経路をたどります。しかし実際の実行では差分があるケースでは、`--check` が示した経路と実際の経路が食い違います。`register` / `when` の組み合わせが増えるほど、`--check` での確認結果と実行結果のずれが生じやすくなります。
+**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-08/)** で扱った `register` / `when` の構成では、`--check` 時の動作が通常実行と異なる場合があります。`--check` モードでは実際の変更が加えられないため、あるタスクが「差分なし」と判定された場合、そのタスクの `register` 変数の `changed` フィールドが `false` になります。後続タスクが `when: some_task.changed` を参照している場合、`--check` 時は「差分なし→`when` 条件が `false`→後続タスクをスキップ」という経路をたどります。しかし実際の実行では差分があるケースでは、`--check` が示した経路と実際の経路が食い違います。`register` / `when` の組み合わせが増えるほど、`--check` での確認結果と実行結果のずれが生じやすくなります。
 
-また `--check` が確認しているのは「モジュールが現時点で差分を検出するかどうか」です。第3回で扱ったchecksum差分の問題や、第6回で扱った `lineinfile` の挙動は、`--check` 実行時にもモジュールの差分検出ロジックに従って判定されます。`--check` がその判定の正確さを保証するわけではありません。
+また `--check` が確認しているのは「モジュールが現時点で差分を検出するかどうか」です。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)** で扱ったchecksum差分の問題や、第6回で扱った `lineinfile` の挙動は、`--check` 実行時にもモジュールの差分検出ロジックに従って判定されます。`--check` がその判定の正確さを保証するわけではありません。
 
 `--check` モードは「このPlaybookを今実行したら変更が発生しそうか」という手がかりを得るためには有効です。しかし「問題がない」という確認にはなりません。shellモジュールの非冪等性は検出されず、`register` / `when` の構成では実際の実行経路と食い違う場合があります。`--check` で問題が出なかったことは、冪等性が保証されたことを意味しません。
 
@@ -159,13 +159,13 @@ ansible-playbook -i inventory.ini site.yml --check --diff
 ```
 
 
-第2回で確認したとおり、`template` モジュールはレンダリング後の出力のchecksumを転送先ファイルと比較して差分を検出します。`--diff` はその差分の内容を実行前に可視化できるため、「意図した変更が加わるかどうか」を人間が確認する手段として有用です。
+**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-02/)** で確認したとおり、`template` モジュールはレンダリング後の出力のchecksumを転送先ファイルと比較して差分を検出します。`--diff` はその差分の内容を実行前に可視化できるため、「意図した変更が加わるかどうか」を人間が確認する手段として有用です。
 
 ただし `--diff` にも限界があります。
 
-`shell` / `command` モジュールには差分表示が機能しません。第3回で取り上げたchecksum差分はファイルの内容に関するものですが、shellモジュールが実行するコマンドの副作用は `--diff` では表示されません。
+`shell` / `command` モジュールには差分表示が機能しません。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)** で取り上げたchecksum差分はファイルの内容に関するものですが、shellモジュールが実行するコマンドの副作用は `--diff` では表示されません。
 
-また `--diff` が行うのは差分の表示だけです。「その差分が意図通りかどうか」は人間が判断する必要があります。第3回で扱ったJinja2のwhitespace差分のように、差分が表示されても「なぜこの差分が出るのか」を読み解くのは容易でない場合があります。
+また `--diff` が行うのは差分の表示だけです。「その差分が意図通りかどうか」は人間が判断する必要があります。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)** で扱ったJinja2のwhitespace差分のように、差分が表示されても「なぜこの差分が出るのか」を読み解くのは容易でない場合があります。
 
 `--check` と組み合わせた場合は、`--check` の限界をそのまま引き継ぎます。`shell` モジュールのタスクはスキップされ、`register` / `when` の構成では実際の実行経路と食い違う場合があります。
 
@@ -197,9 +197,6 @@ Moleculeを使うことで確認内容が変わるわけではありません。
 Moleculeの詳細なインストール方法や設定方法はこの回の主題ではありません。公式ドキュメントを参照してください。
 
 - [Molecule documentation](https://ansible.readthedocs.io/projects/molecule/)
-
-今回の検証環境ではDockerが導入されていないため、実機での動作確認は行いません。構造上こうなりうるという概念説明にとどめます。
-
 
 ---
 
