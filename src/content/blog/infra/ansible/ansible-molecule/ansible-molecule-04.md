@@ -11,6 +11,8 @@ nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform
 relatedSeries: ''
 ---
 
+<style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
+
 
 > **🗺️ 初めての方・シリーズの全体像を知りたい方はこちら**
 > 
@@ -404,11 +406,11 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 
 両者は補完関係にあります。ansible-lintは実行前に設計上の問題を発見できますが、実際にPlaybookを対象環境へ適用した結果までは確認できません。Moleculeは実際の動作を確認できますが、実行して初めて分かる問題であるため、発見のタイミングはansible-lintより後になります。どちらか一方だけでは、Playbookの品質を十分に確認したことにはなりません。
 
-このシリーズでは、冪等性シリーズで「壊れない設計」を、ドリフトシリーズで「それでもずれていく理由」を整理してきました。そして本シリーズでは、その2つを踏まえた上で「ずれていないことを継続的に確認する仕組み」を扱ってきました。この3つのシリーズを重ねると、次のような構造として整理できます。
+このシリーズでは、**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で「壊れない設計」を、ドリフトシリーズで「それでもずれていく理由」を整理してきました。そして本シリーズでは、その2つを踏まえた上で「ずれていないことを継続的に確認する仕組み」を扱ってきました。この3つのシリーズを重ねると、次のような構造として整理できます。
 
 |層|担う役割|
 |---|---|
-|設計（冪等性シリーズ）|壊れない設計にする|
+|設計（**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**）|壊れない設計にする|
 |運用（ドリフトシリーズ）|管理外の変化を検知する|
 |テスト（Moleculeシリーズ）|変更のたびに継続的に確認する|
 
@@ -428,7 +430,7 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 - **4つの失敗パターン（ansible-lint・converge・idempotency・verify）は、それぞれ異なる設計上の問題を示します。** パイプラインの早い段階ほど、Playbookを実行せずに、あるいは実行のより早い時点で問題を発見できます。
 - **Moleculeとansible-lintをCIに組み込むことで、確認がPlaybookへの変更をきっかけに自動実行され、結果が記録として残る構造になります。** これにより、手動確認が抱えていた「確認を忘れる」「記録されない」という限界が解消されます。
 - **ansible-lint（静的チェック）とMolecule（動的テスト）は補完関係にあり、両方を組み合わせて初めてPlaybookの品質を段階的に確認できます。**
-- 冪等性シリーズ・ドリフトシリーズ・Moleculeシリーズを重ねると、「設計で防ぎ・運用で検知し・テストで継続的に確認する」という三層の構造として整理できます。
+- **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・ドリフトシリーズ・Moleculeシリーズを重ねると、「設計で防ぎ・運用で検知し・テストで継続的に確認する」という三層の構造として整理できます。
 
 ---
 
@@ -438,22 +440,27 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 
 ## 7. 次回予告
 
-今回で、「AnsibleのPlaybookが壊れる理由はテスト文化にあった」シリーズは完結です。
+本シリーズでは「ずれていないことを継続的に確認する仕組み」として、テストを持つことの意味を扱ってきました。次のシリーズでは、その先にある別の問いを扱います。
 
-冪等性シリーズで「壊れない設計」を、ドリフトシリーズで「それでもずれていく理由」を、そしてMoleculeシリーズで「ずれていないことを継続的に確認する仕組み」を整理してきました。
+**「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」**
 
-```mermaid
-flowchart TD
-    A["冪等性シリーズ<br/>壊れない設計を理解する"] --> B["ドリフトシリーズ<br/>ずれていく理由を理解する"]
-    B --> C["Moleculeシリーズ<br/>ずれていないことを<br/>継続的に確認する仕組みを作る"]
-```
+このシリーズでは、Ansible単体では扱いきれなかった**複数のツールが連携する場面でのトラブル**を扱います。Terraformがインフラリソースを生成し、その完了後にAnsibleが構成管理を行うという連携は、一見単純に見えても、リソースの生成完了・ネットワークの初期化・SSH接続の確立・実行環境の差異といった複数の段階を経て初めて成立します。第1部（環境構築・連携編）では、この連携の中で起きる9つのトラブルを、実機検証を交えながら扱います。
 
+|回|タイトル|内容（概要）|
+|---|---|---|
+|**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとターゲット側のSSHDが実際にリクエストを受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。|
+|**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマとの構造的な差異を整理し、変換スクリプトによる解決方法を解説する。|
+|**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
+|**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformがリソースを再生成する際に発生するIPアドレス変動を実機で検証し、TerraformリソースレベルでのIP固定と動的インベントリという2つのアプローチを比較する。|
+|**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**|ネットワーク初期化完了前に発生する接続タイムアウト|ネットワークの構築完了と実際に通信可能な状態が別のタイミングであるという構造から生じる接続タイムアウトを整理し、対策設計を解説する。|
+|**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)**|実行環境とターゲットOS間におけるPythonバージョンの不一致|ターゲットOS内のPythonバージョンと、コントロールノード側のPythonの乖離による実行時エラーへの対応。冪等性シリーズ第7回との接続を示す。|
+|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)**|複数インスタンス同時構築時における並列処理の競合|Terraformの並列生成とAnsible側の並列実行数（forks）の噛み合わせによって処理が遅延・競合する問題を整理し、forks調整やバッチ分割といった対策設計を解説する。|
+|**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)**|OS固有の初期ユーザーと管理者権限（sudo）への昇格エラー|コンテナイメージごとに異なるデフォルトユーザーに対し、`become`を用いて権限昇格する際の設定ミスと対策。|
+|**[第10回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-10/)**|環境構築編まとめ：自動連携のためのコードテンプレート化|第1〜9回の課題を踏まえ、TerraformからAnsibleへ一貫して安全に処理を移譲するための実行順序と、統合したコードテンプレートを解説する。|
 
-ここまでは、Ansible単体を対象としたPlaybookの設計とテストを扱ってきました。しかし実際の運用では、Ansibleだけでインフラを完結させることは多くありません。VMやネットワークといったインフラそのものの構築にはTerraformのような別のツールが使われ、Ansibleはその上に構成を適用する役割を担うことがあります。複数のツールが絡む場合、テストの設計はどう考えればよいのかという新しい問いが生まれます。
+**[次回：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第1回：AnsibleとTerraformの連携目的と設計思想の違い](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**
 
-次のシリーズでは、この問いに向き合います。
-
-**次回シリーズ：「Ansible×Terraform編」**
 
 ---
 

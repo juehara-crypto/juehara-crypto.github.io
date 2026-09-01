@@ -87,7 +87,7 @@ relatedSeries: ''
 
 ## 3. この回のスコープ：何を確認するか
 
-第1回で整理した5フェーズのうち、今回実機で確認するのはconverge・idempotenceの2つです。create・destroyはこの回では扱いません。その理由を整理します。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)** で整理した5フェーズのうち、今回実機で確認するのはconverge・idempotenceの2つです。create・destroyはこの回では扱いません。その理由を整理します。
 
 この回で確認したいのは、「同一プレイブックを連続実行した際に、2回目が変更なし(changed=0)になること」です。
 

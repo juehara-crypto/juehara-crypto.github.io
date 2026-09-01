@@ -101,25 +101,25 @@ ansible-lintのルールは多数存在しますが、その全体が何を守�
 |risky-file-permissions|パーミッション関連の設定未指定は差分の原因|**[冪等性シリーズ第3回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)**|
 |yaml構文ルール|読みやすいプレイブックが保守しやすい|直接の接続元なし（独立して整理）|
 
-**command-instead-of-module**
+### command-instead-of-module
 
 shellモジュール・commandモジュールは、現在の状態を観測する仕組みを持ちません。そのため実行するたびに`changed`として報告されるか、状態が変わったかどうかを判断できないまま実行されます。対応する宣言型モジュール（file・copy・templateなど）が存在する場合は、そちらを使うべきという設計思想がこのルールの背景にあります。
 
 **[冪等性シリーズ第1回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認した通り、shellモジュールに渡せる情報はコマンド文字列だけであり、実行前後の状態を判断する仕組みを持っていません。**[冪等性シリーズ第2回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-02/)** で確認したfile・copy・templateモジュールは、実行前に現在の状態を観測し、desired stateと比較した上で変更の要否を判断します。command-instead-of-moduleは、この構造的な違いを静的に検出するルールです。
 
-**no-changed-when**
+### no-changed-when
 
 shellタスクに`changed_when`を指定しない場合、実行のたびに`changed=1`が返り続けます。この状態では、Moleculeのidempotenceフェーズを実行しても、冪等性の確認そのものが成立しません。
 
 このルールが守っているのは「冪等性の確認を意味のあるものにすること」です。**[冪等性シリーズ第1回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認した通り、`changed_when: false`を付けたとしても、それは表示の制御であり、実際の動作（例えばサービスの再起動）が変わるわけではありません。no-changed-whenは、この点への注意を静的な段階で促すルールです。
 
-**risky-file-permissions**
+### risky-file-permissions
 
 file・templateモジュール等でowner・group・modeといったパーミッション関連の設定を明示しない場合、実行環境によって異なる状態が設定される可能性があります。
 
 **[冪等性シリーズ第3回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-03/)** では、owner/groupの名前解決がノード間でずれる問題を扱いました。同じ名前を指定していても、ノードごとにUID/GIDが異なれば、Ansibleの観測上は別の状態として検出されます。これは「意味的には同じ設定のはずが、Ansibleの観測上は別状態になる」という構造の一つであり、risky-file-permissionsが検出しようとしているのも同じ種類の問題です。パーミッション関連の設定を明示しておくことが、この種の差分を防ぐ基本になります。
 
-**yaml構文ルール**
+### yaml構文ルール
 
 インデント・クォートの統一などの構文ルールは、①〜③とは異なり冪等性そのものには直接関わりません。プレイブックの読みやすさが保守性に影響するという観点から定められています。
 
