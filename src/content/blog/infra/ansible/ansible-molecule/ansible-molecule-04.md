@@ -464,7 +464,7 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 
 ---
 
-📑 連載の移動　**[前の記事：【Molecule編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)　｜　[次の記事：【「Ansible×Terraform」編】第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**
+📑 連載の移動　**[前の記事：【Molecule編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)　｜　[次の記事：【「Ansible×Terraform」編】第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**
 
 ---
 
