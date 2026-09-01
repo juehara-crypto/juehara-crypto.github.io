@@ -40,7 +40,7 @@ table td:first-child {
 5. [ドリフトを修正する設計](#5-ドリフトを修正する設計)
 6. [ドリフトの問題はAnsible単体では完結しない](#6-ドリフトの問題はansible単体では完結しない)
 7. [まとめ](#7-まとめ)
-8. [おわりに](#8-おわりに)
+8. [次回予告](#8-次回予告)
 9. [連載一覧：「Ansibleは冪等なのに、なぜサーバは壊れていくのか」](#9-連載一覧ansibleは冪等なのになぜサーバは壊れていくのか)
 
 ---
@@ -202,17 +202,31 @@ flowchart TD
 
 ---
 
-## 8. おわりに
+## 8. 次回予告
 
-全5回を振り返ります。**[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-00/)** でドリフトを「Playbookで定義したdesired stateと実際のサーバの状態がずれていく現象」として定義し、冪等性シリーズとの違いを整理しました。**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-01/)** で手動変更がドリフトを生む構造を、template・lineinfileという2つのモジュールの挙動の違いを通して確認しました。**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)** で`--check`モードがドリフト検知ツールとして機能する範囲の限界を実機で切り分けました。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-03/)** でchangedが出ない静かなドリフトの存在を確認し、Playbookが正常終了していることとサーバ全体が正しい状態にあることは別の話であると整理しました。そして第4回で、これらを踏まえた「防ぐ」「検知する」「修正する」という3つの設計パターンを整理しました。
+次のシリーズでは、その先にある別の問いを扱います。
 
-「Ansibleは冪等なのに、なぜサーバは壊れていくのか」という問いに対するこのシリーズの答えは、Ansibleの冪等性はPlaybookが実行されている瞬間にしか働かないという点にあります。Ansibleが実行されていない時間には、手動変更・他ツールの介入・自動更新といった、Ansibleの管理が及ばない変化が起き続けます。冪等性はこの時間的な空白を埋めるものではなく、ドリフトへの対処には冪等性とは別に、検知と修正の仕組みを設計として持つ必要があります。
+**「AnsibleのPlaybookが壊れる理由はテスト文化にあった」**
 
-ここまでお読みいただきありがとうございました。
+ドリフトシリーズで整理した「検知して修正する設計」を前提に、次シリーズは**Playbookへの変更のたびに、期待どおりの状態を維持できているかを継続的に確認する仕組み**を扱います。ドリフトを検知・修正する設計を持っていても、その確認を人の判断に任せている限り、確認自体が抜け落ちる可能性が残ります。
+
+|回|タイトル|内容(概要)|
+|---|---|---|
+|**[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**|なぜPlaybookにテストが必要なのか|「実行して成功した」と「正しい」は別の概念であることを整理し、手動確認の構造的な限界を理解する。テストを持つことの本質が「確認を仕組みに組み込むこと」であることを理解する。|
+|**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)**|Moleculeは何をしているのか|create・converge・idempotency・verify・destroyという各フェーズが何のためにあるかを、冪等性の文脈と接続しながら理解する。「2回実行してchanged=0」という手動確認をMoleculeが自動化している構造であることを整理する。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-02/)**|冪等性テストを自動化する|冪等性シリーズで作成したPlaybookをMoleculeでテストする構成を実機で確認し、1回目と2回目の実行で何が確認されているかを読み取る。idempotencyフェーズで`changed`が発生した場合の表示を意図的に再現し、テストが失敗するとはどういう状態かを理解する。|
+|**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-03/)**|ansible-lintはなぜそのルールを定めているのか|ansible-lintのルールを設計品質の静的確認として位置づけ、代表的なルールカテゴリが冪等性・ドリフトの問題とどう接続しているかを理解する。MoleculeのverifyフェーズにAnsible-lintを組み込み、テストパイプラインの一部として位置づける。|
+|**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-04/)**|テストが失敗したとき何が分かるのか・CIに組み込む|Moleculeのテスト失敗パターンを、設計上の何が問題なのかというフィードバックとして読む視点を理解する。GitHub ActionsなどのCIにMoleculeとansible-lintを組み込み、「変更のたびに確認し続ける」仕組みを整理する。|
+
+**[次回：【テスト文化編】第0回：なぜPlaybookにテストが必要なのか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**
 
 ---
 
-📑 連載の移動　**[前の記事：【構成ドリフト編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)　｜　[次の記事：【Molecule編】 第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**
+[↑ 目次に戻る](#-%E7%9B%AE%E6%AC%A1)
+
+---
+
+📑 連載の移動　**[前の記事：【構成ドリフト編】 第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-03/)　｜　[次の記事：【Molecule編】 第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-molecule/ansible-molecule-00/)**
 
 ---
 
