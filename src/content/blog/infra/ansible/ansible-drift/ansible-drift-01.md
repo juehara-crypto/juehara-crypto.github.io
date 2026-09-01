@@ -522,7 +522,7 @@ events {
 
 同じく手動変更後のPlaybook再実行を検証しますが、今度はlineinfileモジュールを使っているケースを取り上げます。
 
-冪等性シリーズ第6回で、lineinfileは「局所パッチ」として動作することを確認しました。この特性が、ドリフトの文脈でどう現れるかを整理します。
+**[冪等性シリーズ第6回](http://localhost:4321/blog/infra/ansible/ansible-idempotency/ansible-idempotency-06/)** で、lineinfileは「局所パッチ」として動作することを確認しました。この特性が、ドリフトの文脈でどう現れるかを整理します。
 
 ```plaintext
 【事前確認（1回目の実行）】
