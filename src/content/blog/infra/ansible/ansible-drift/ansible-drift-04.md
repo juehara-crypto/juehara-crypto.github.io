@@ -27,7 +27,7 @@ table td:first-child {
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「Ansibleは冪等なのに、なぜサーバは壊れていくのか」シリーズまとめブログ** **※近日公開予定**
+> → **[「Ansibleは冪等なのに、なぜサーバは壊れていくのか」シリーズまとめブログ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**
 
 ---
 
@@ -235,7 +235,7 @@ flowchart TD
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「Ansibleは冪等なのに、なぜサーバは壊れていくのか」シリーズまとめブログ** **※近日公開予定**
+> → **[「Ansibleは冪等なのに、なぜサーバは壊れていくのか」シリーズまとめブログ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**
 
 ---
 
