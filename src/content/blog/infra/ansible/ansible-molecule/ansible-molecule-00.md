@@ -16,7 +16,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleのPlaybookが壊れる理由はテスト文化にあった」 シリーズまとめブログ** **※近日公開予定**
+> → **[「AnsibleのPlaybookが壊れる理由はテスト文化にあった」 シリーズまとめブログ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)**
 
 ---
 
@@ -192,7 +192,7 @@ flowchart TD
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleのPlaybookが壊れる理由はテスト文化にあった」 シリーズまとめブログ** **※近日公開予定**
+> → **[「AnsibleのPlaybookが壊れる理由はテスト文化にあった」 シリーズまとめブログ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)**
 
 ---
 
