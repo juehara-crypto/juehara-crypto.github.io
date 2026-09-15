@@ -390,7 +390,7 @@ Ansibleが提供する仕組みは、冪等な設計を選択しやすくする�
 
 本シリーズでは「Playbookの設計問題」として冪等性が崩れる構造を扱ってきました。次のシリーズでは、その先にある別の問いを扱います。
 
-**「Ansibleは冪等なのに、なぜサーバは壊れていくのか」**
+**[「Ansibleは冪等なのに、なぜサーバは壊れていくのか」](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**
 
 **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で整理した「壊れない設計」を前提に、次シリーズは**Ansibleが実行されていない時間に起きる構成ドリフト**を扱います。Playbookを正しく設計して冪等性を保っていても、Ansibleが実行されていない時間に起きる変化には対応できません。
 
