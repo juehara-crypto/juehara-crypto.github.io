@@ -397,7 +397,7 @@ no-changed-when: Commands should not change things if nothing needs doing.
 
 - ansible-lintは静的チェック、Moleculeは動的テストという役割分担を持ち、両者は補完関係にある
 - ansible-lintのルールは大きく「冪等性の維持」と「保守性の維持」という2つの目的に分類できる
-- command-instead-of-module・no-changed-when・risky-file-permissionsは、いずれも冪等性シリーズで確認してきた問題と直接接続している。このうちno-changed-whenは、verifyフェーズの実機検証でも実際に検出を確認した
+- command-instead-of-module・no-changed-when・risky-file-permissionsは、いずれも **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で確認してきた問題と直接接続している。このうちno-changed-whenは、verifyフェーズの実機検証でも実際に検出を確認した
 - yaml構文ルールは冪等性そのものには関わらず、前シリーズとの直接の接続元もない。保守性の観点から独立したルールとして整理した
 - **[第1回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)** で整理したMolecule全体の5フェーズのうち、本シリーズでは以降ansible-lint→converge→idempotence→verifyの4段階を中心に扱う。destroyの役割自体は否定しない
 ---

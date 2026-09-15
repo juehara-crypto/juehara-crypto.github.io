@@ -406,13 +406,13 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 
 両者は補完関係にあります。ansible-lintは実行前に設計上の問題を発見できますが、実際にPlaybookを対象環境へ適用した結果までは確認できません。Moleculeは実際の動作を確認できますが、実行して初めて分かる問題であるため、発見のタイミングはansible-lintより後になります。どちらか一方だけでは、Playbookの品質を十分に確認したことにはなりません。
 
-このシリーズでは、**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で「壊れない設計」を、ドリフトシリーズで「それでもずれていく理由」を整理してきました。そして本シリーズでは、その2つを踏まえた上で「ずれていないことを継続的に確認する仕組み」を扱ってきました。この3つのシリーズを重ねると、次のような構造として整理できます。
+このシリーズでは、**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で「壊れない設計」を、**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** で「それでもずれていく理由」を整理してきました。そして本シリーズでは、その2つを踏まえた上で「ずれていないことを継続的に確認する仕組み」を扱ってきました。この3つのシリーズを重ねると、次のような構造として整理できます。
 
 |層|担う役割|
 |---|---|
 |設計（**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**）|壊れない設計にする|
-|運用（ドリフトシリーズ）|管理外の変化を検知する|
-|テスト（Moleculeシリーズ）|変更のたびに継続的に確認する|
+|運用（**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**）|管理外の変化を検知する|
+|テスト（**[Moleculeシリーズ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)**）|変更のたびに継続的に確認する|
 
 テストを持つことは、この三層構造のうち「継続的に確認する」という役割を担う仕組みです。設計と運用だけでは、Playbookが実際に冪等であり続けているかどうかを、変更のたびに保証することはできません。
 
@@ -430,7 +430,7 @@ CIツールの選定や、GitHub Actionsのワークフローファイルの作�
 - **4つの失敗パターン（ansible-lint・converge・idempotency・verify）は、それぞれ異なる設計上の問題を示します。** パイプラインの早い段階ほど、Playbookを実行せずに、あるいは実行のより早い時点で問題を発見できます。
 - **Moleculeとansible-lintをCIに組み込むことで、確認がPlaybookへの変更をきっかけに自動実行され、結果が記録として残る構造になります。** これにより、手動確認が抱えていた「確認を忘れる」「記録されない」という限界が解消されます。
 - **ansible-lint（静的チェック）とMolecule（動的テスト）は補完関係にあり、両方を組み合わせて初めてPlaybookの品質を段階的に確認できます。**
-- **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・ドリフトシリーズ・Moleculeシリーズを重ねると、「設計で防ぎ・運用で検知し・テストで継続的に確認する」という三層の構造として整理できます。
+- **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**・**[Moleculeシリーズ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)** を重ねると、「設計で防ぎ・運用で検知し・テストで継続的に確認する」という三層の構造として整理できます。
 
 ---
 

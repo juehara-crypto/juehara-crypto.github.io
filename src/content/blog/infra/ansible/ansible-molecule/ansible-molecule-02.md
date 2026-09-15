@@ -37,7 +37,7 @@ relatedSeries: ''
 
 **[第1回](http://localhost:4321/blog/infra/ansible/ansible-molecule/ansible-molecule-01/)** では、Moleculeの5フェーズ(create・converge・idempotency・verify・destroy)が何を確認しているかを、手動確認の手順と対応づけて構造として整理しました。
 
-今回はその構造を実際に動かして確認します。冪等性シリーズで作成したプレイブックを対象に、Moleculeを実行し、出力から何が読み取れるかを見ていきます。「フェーズの構造を理解した」を「出力として読める」に進める回です。
+今回はその構造を実際に動かして確認します。**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で作成したプレイブックを対象に、Moleculeを実行し、出力から何が読み取れるかを見ていきます。「フェーズの構造を理解した」を「出力として読める」に進める回です。
 
 なお、今回実機で確認するのは5フェーズすべてではなく、converge・idempotenceの2つが中心になります。理由はセクション3で整理します。
 
@@ -49,7 +49,7 @@ relatedSeries: ''
 
 ## 2. 対象プレイブックの構成
 
-この回で対象にするプレイブックは、冪等性シリーズで使用したものをそのまま使います。新たにテスト用のプレイブックを用意するのではなく、既存のプレイブックがテストの対象になるという位置づけです。
+この回で対象にするプレイブックは、**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で使用したものをそのまま使います。新たにテスト用のプレイブックを用意するのではなく、既存のプレイブックがテストの対象になるという位置づけです。
 
 ```yaml
 ---
@@ -437,7 +437,7 @@ ERROR    Idempotence test failed because of the following tasks:
 
 ## 7. まとめ
 
-- 対象のプレイブックは冪等性シリーズで使用したものをそのまま利用し、新たにテスト用のプレイブックは用意しなかった
+- 対象のプレイブックは **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で使用したものをそのまま利用し、新たにテスト用のプレイブックは用意しなかった
 - 今回確認したのは「プレイブックが何度実行しても不要な変更を発生させないこと」であり、この目的にはconverge・idempotenceの2フェーズで足りる。create・destroyが担う役割(初回適用の厳密な保証、テスト間の独立性)自体は重要だが、今回のテーマの範囲では必要にならなかった
 - convergeフェーズの出力から、`changed`の有無はノードの現在の状態とdesired stateとの差分で決まることを確認した
 - idempotenceフェーズの出力から、`changed=0`が確認できることの意味と、`idempotence: Executed: Successful`という判定行の位置を確認した。同じプレイブックを再実行しても不要な変更が発生しないことをMoleculeが判断した結果であり、これが冪等性(idempotence)の確認そのものであることを整理した
