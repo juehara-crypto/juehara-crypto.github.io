@@ -586,7 +586,7 @@ target-node1〜3すべて、`terraform apply`失敗前から一貫して`Up`状�
 
 taint済みの`null_resource.provision`に対して次の`terraform apply`を実行すると、`null_resource.provision`のみが破棄、再作成され、その内実は`local-exec`（Ansible実行）の再試行でした。異常終了の原因だったタスクを取り除いた状態で再試行した結果、Ansibleは正常に完了し、tainted状態は解消されました。この間、target-node1〜3のコンテナは一貫して無傷のまま保たれています。
 
-**[第42回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**、**[第44回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** で扱った「リソースの破棄、再作成に伴うAnsible生成データの消失」は、あくまで`docker_container`のようなDocker側に実体を持つリソースが再生成対象になった場合の結果です。`null_resource.provision`のtaintedは、この種のデータ消失には直結しません。次回applyでの再試行が失敗の原因を取り除いたものであれば、コンテナに一切触れることなく、プロビジョニングの不整合は収束します。
+**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** で扱った「リソースの破棄、再作成に伴うAnsible生成データの消失」は、あくまで`docker_container`のようなDocker側に実体を持つリソースが再生成対象になった場合の結果です。`null_resource.provision`のtaintedは、この種のデータ消失には直結しません。次回applyでの再試行が失敗の原因を取り除いたものであれば、コンテナに一切触れることなく、プロビジョニングの不整合は収束します。
 
 次のセクションでは、この回で整理した内容をまとめます。
 
