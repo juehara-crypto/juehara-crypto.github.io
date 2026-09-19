@@ -287,7 +287,7 @@ resource "null_resource" "provision" {
 
 このテンプレートで意識しているのは、第3節で整理した実行順序をそのままHCLに落とし込むことです。ネットワークが最小限待機された後、SSH接続の確立が`remote-exec`で確認されてから、初めて`local-exec`でAnsibleが呼び出されます。この時点で秘密鍵のパーミッションはすでに`0600`に設定済みであり、接続先のIPアドレスは固定されているため、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で扱ったインベントリとの不一致も起こりません。
 
-第9回で扱った`ansible_user`・become設定は、Terraform側ではなくAnsible側(インベントリ・group_vars)で扱う内容のため、次のセクションで整理します。
+**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で扱った`ansible_user`・become設定は、Terraform側ではなくAnsible側(インベントリ・group_vars)で扱う内容のため、次のセクションで整理します。
 
 ---
 
@@ -299,7 +299,7 @@ resource "null_resource" "provision" {
 
 第1〜9回の解決策のうち、Ansible側で対応する要素を統合したテンプレート構成を示します。
 
-**動的インベントリスクリプト(第3回)**
+**動的インベントリスクリプト(**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**)**
 
 ```python
 #!/usr/bin/env python3
@@ -355,9 +355,9 @@ if __name__ == "__main__":
     main()
 ```
 
-**[第3回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03)** のスクリプトに対し、`_meta.hostvars`へ`ansible_python_interpreter`(**[第7回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07)**)・`ansible_become`・`ansible_become_user`(**[第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09)**)を追加しています。コンテナごとにユーザーやPythonバージョンが異なる場合は、`nodes.items()`のループ内で条件分岐させ、ホストごとに異なる値を設定する形に拡張できます。
+**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)** のスクリプトに対し、`_meta.hostvars`へ`ansible_python_interpreter`(**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)**)・`ansible_become`・`ansible_become_user`(**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)**)を追加しています。コンテナごとにユーザーやPythonバージョンが異なる場合は、`nodes.items()`のループ内で条件分岐させ、ホストごとに異なる値を設定する形に拡張できます。
 
-**group_varsでの設定([第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09))**
+**group_varsでの設定([第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/))**
 
 ```yaml
 # group_vars/target_nodes.yml
@@ -368,7 +368,7 @@ ansible_python_interpreter: /usr/bin/python3.10
 
 動的インベントリスクリプト側で`hostvars`に含めず、group_vars側にまとめる場合はこちらの形になります。どちらか一方に統一し、二重に定義しないようにします。
 
-**ansible.cfg([第8回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08))**
+**ansible.cfg([第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/))**
 
 ```ini
 [defaults]
@@ -379,7 +379,7 @@ forks = 5
 
 `forks`をTerraform側の`-parallelism`(セクション4で`local-exec`実行時に`--forks=5`を指定)と揃えています。
 
-**Playbook冒頭の接続確立待機([第2回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02) ・ [第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06))**
+**Playbook冒頭の接続確立待機([第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/) ・ [第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/))**
 
 ```yaml
 ---
@@ -405,19 +405,19 @@ forks = 5
       # ...
 ```
 
-`wait_for`(ネットワーク疎通、**[第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06)**)と`wait_for_connection`(SSHD起動、**[第2回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02)**)は、**[第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06)** セクション5で整理した通り確認している対象が異なるため、両方を冒頭に置いています。`wait_for`でネットワーク経路の確立を確認したうえで、`wait_for_connection`でSSHDが実際に応答できる状態かを確認する、という2段階の待機です。
+`wait_for`(ネットワーク疎通、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**)と`wait_for_connection`(SSHD起動、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** は、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)** セクション5で整理した通り確認している対象が異なるため、両方を冒頭に置いています。`wait_for`でネットワーク経路の確立を確認したうえで、`wait_for_connection`でSSHDが実際に応答できる状態かを確認する、という2段階の待機です。
 
 各要素と対応する回を整理します。
 
 |要素|対応する回|
 |---|---|
-|動的インベントリスクリプトの`_meta.hostvars`|**[第3回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03)** (基本構造) ・ **[第7回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07)** (python_interpreter)・ **[第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09)** (become設定)|
-|group_vars|**[第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09)**|
-|`ansible.cfg`の`forks`|**[第8回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08)**|
-|`wait_for`|**[第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06)**|
-|`wait_for_connection`|**[第2回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02)**|
+|動的インベントリスクリプトの`_meta.hostvars`|**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)** (基本構造) ・ **[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)** (python_interpreter)・ **[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** (become設定)|
+|group_vars|**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)**|
+|`ansible.cfg`の`forks`|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)**|
+|`wait_for`|**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**|
+|`wait_for_connection`|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|
 
-このテンプレートで意識しているのは、Ansible側が「接続先の情報をどこから得るか」(動的インベントリ)と、「接続してから何を確認し、どう振る舞うか」(疎通待機・Python・become)を、それぞれ役割ごとに分けて設定する構成です。第9回で見た通り、`ansible_user`とコンテナの実際のユーザーが一致していなければ、この構成のどこにも到達する前にSSH接続自体が失敗します。動的インベントリの`hostvars`にホストごとの`ansible_user`を正しく持たせることが、この構成全体の前提になります。
+このテンプレートで意識しているのは、Ansible側が「接続先の情報をどこから得るか」(動的インベントリ)と、「接続してから何を確認し、どう振る舞うか」(疎通待機・Python・become)を、それぞれ役割ごとに分けて設定する構成です。**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で見た通り、`ansible_user`とコンテナの実際のユーザーが一致していなければ、この構成のどこにも到達する前にSSH接続自体が失敗します。動的インベントリの`hostvars`にホストごとの`ansible_user`を正しく持たせることが、この構成全体の前提になります。
 
 ---
 
@@ -429,10 +429,10 @@ forks = 5
 
 この回で整理した内容を確認します。
 
-* **[第1回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01)** から **[第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09)** で扱ったトラブルは、いずれも「Terraformでリソースを生成してから、Ansibleが構成管理を始めるまで」という区間で発生する問題でした。個別には独立した問題に見えますが、「完了報告と使える状態のタイミングのズレ」「Terraformが管理する情報の形式とAnsibleが必要とする形式の不一致」「Terraformが管理する土台の中身がAnsibleの前提と食い違うこと」という3つの性質に整理できます
-* TerraformからAnsibleへ安全に処理を移譲するための実行順序は、「リソース生成→秘密鍵のパーミッション設定→ネットワーク・接続確立の待機→正しいPythonインタプリタの使用→コンテナごとの正しいansible_user・become設定→タスク実行」という流れに整理できます。この順序は、Terraformが完了を報告することと、Ansibleが安全に作業を始められることが別の基準であるという、**[第1回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01)** 以来の考え方に基づいています
-* Terraform側のテンプレートでは、IPアドレスの固定(第5回)・Pythonバージョンの明示指定(**[第7回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07)**)・秘密鍵のパーミッション設定(**[第4回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04)**)・ネットワーク初期化の最小限の待機(**[第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06)**)・SSH接続確立の確認(**[第2回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02)**)を、リソース生成から`local-exec`によるAnsible実行までの一連の流れに組み込みました
-* Ansible側のテンプレートでは、動的インベントリスクリプトによる接続情報の取得(第3回)に、Pythonインタプリタ(**[第7回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07)**)・become設定(**[第9回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09)**)を組み込み、`ansible.cfg`のforks調整(第8回)と、Playbook冒頭でのネットワーク疎通・SSHD起動の2段階の待機(**[第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06)** ・ **[第2回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02)** )を組み合わせました
+* **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から **[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で扱ったトラブルは、いずれも「Terraformでリソースを生成してから、Ansibleが構成管理を始めるまで」という区間で発生する問題でした。個別には独立した問題に見えますが、「完了報告と使える状態のタイミングのズレ」「Terraformが管理する情報の形式とAnsibleが必要とする形式の不一致」「Terraformが管理する土台の中身がAnsibleの前提と食い違うこと」という3つの性質に整理できます
+* TerraformからAnsibleへ安全に処理を移譲するための実行順序は、「リソース生成→秘密鍵のパーミッション設定→ネットワーク・接続確立の待機→正しいPythonインタプリタの使用→コンテナごとの正しいansible_user・become設定→タスク実行」という流れに整理できます。この順序は、Terraformが完了を報告することと、Ansibleが安全に作業を始められることが別の基準であるという、**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** 以来の考え方に基づいています
+* Terraform側のテンプレートでは、IPアドレスの固定(**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**)・Pythonバージョンの明示指定(**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)**)・秘密鍵のパーミッション設定(**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**)・ネットワーク初期化の最小限の待機(**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**)・SSH接続確立の確認(**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**)を、リソース生成から`local-exec`によるAnsible実行までの一連の流れに組み込みました
+* Ansible側のテンプレートでは、動的インベントリスクリプトによる接続情報の取得(第3回)に、Pythonインタプリタ(**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)**)・become設定(**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)**)を組み込み、`ansible.cfg`のforks調整(**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)**)と、Playbook冒頭でのネットワーク疎通・SSHD起動の2段階の待機(**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)** ・ **[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** )を組み合わせました
 * このテンプレートはDocker環境での検証を基本としていますが、VM・クラウド環境でも、リソースの実装方式が変わるだけで同じ考え方が適用できます
 
 第1部を通じて一貫していたのは、TerraformとAnsibleがそれぞれ独立したツールであり、片方の完了報告がもう片方にとって「安全に始めてよい」という保証にはならない、という構造でした。このテンプレートは、その構造を踏まえたうえで、両者の間にある9つの落とし穴をあらかじめ塞ぐための土台です。
