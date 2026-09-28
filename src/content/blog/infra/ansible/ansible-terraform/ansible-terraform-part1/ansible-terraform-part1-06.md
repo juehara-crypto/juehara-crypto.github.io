@@ -61,7 +61,7 @@ Terraformでネットワークを構築した直後にAnsibleを実行すると�
 
 正確に言うと、**Terraformがネットワークリソースの作成完了と判断する基準は、あくまでAPIからレスポンスが返ってきたことであり、そのネットワークが実際に通信可能な状態になっているかどうかは、Terraformの管理範囲の外にあります**。この構造は、Dockerネットワークのブリッジ構成であっても、AWSのSecurity GroupやVPCルーターであっても、実装方式が異なるだけで同じ位置づけの問題です。
 
-第2回でも、Terraformの完了報告とAnsibleが接続できる状態との間にタイムラグがある問題を扱いました。ただし第2回で扱ったのはSSHDというプロセスの起動タイミングであり、今回扱うのはネットワークそのものの初期化タイミングです。両者は「Ansibleが接続できない」という症状こそ似ていますが、原因のレイヤーが異なります。この違いは第3節で改めて整理します。
+**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** でも、Terraformの完了報告とAnsibleが接続できる状態との間にタイムラグがある問題を扱いました。ただし **[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で扱ったのはSSHDというプロセスの起動タイミングであり、今回扱うのはネットワークそのものの初期化タイミングです。両者は「Ansibleが接続できない」という症状こそ似ていますが、原因のレイヤーが異なります。この違いは **[第3節](#3-第2回のsshd起動タイミング問題との違い)** で改めて整理します。
 
 この回では、このネットワーク初期化のラグがなぜ生まれるのかという構造を整理したうえで、`wait_for`モジュールと`time_sleep`リソースという2つの待機制御の方法を見ていきます。
 
@@ -98,7 +98,7 @@ APIの完了応答が示しているのは、ネットワークリソースが�
 
 ここで一つ補足しておきます。「構築完了」と「通信可能」が別のイベントであるという構造そのものは、この3つの環境で共通していますが、そのラグの大きさは環境によって大きく異なります。Dockerのブリッジ初期化はホストOS内部で完結する処理であり、通常はミリ秒単位で終わります。一方、AWSのSecurity Groupの伝播やVPCルーターの経路反映は、クラウド側のコントロールプレーンを経由するため、環境によっては数秒から数十秒単位のラグになることがあります。同じ構造の問題であっても、実務上どれだけ意識する必要があるかは、環境によって差があります。
 
-次のセクションでは、この構造が第2回で扱ったSSHD起動タイミング問題とどう違うのかを整理します。
+次のセクションでは、この構造が **[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で扱ったSSHD起動タイミング問題とどう違うのかを整理します。
 
 ---
 
@@ -145,11 +145,11 @@ FAILED! => {
 
 このエラーメッセージの中で注目すべきは、「Connection timed out」という部分です。これは、指定したホストのポート22に対して接続を試みたものの、相手から一切の応答が返ってこないまま、待機時間の上限に達したことを示しています。
 
-第3節で整理した通り、この「応答が返ってこない」という状態は、ネットワーク経路そのものがまだ確立していない場合に起こります。SSHDプロセスがどれだけ正常に起動していても、パケットがそこまで到達する経路が用意されていなければ、SSHDは接続要求を受け取ることすらできません。
+**[第3節](#3-第2回のsshd起動タイミング問題との違い)** で整理した通り、この「応答が返ってこない」という状態は、ネットワーク経路そのものがまだ確立していない場合に起こります。SSHDプロセスがどれだけ正常に起動していても、パケットがそこまで到達する経路が用意されていなければ、SSHDは接続要求を受け取ることすらできません。
 
 一方、SSHDが単に起動していないだけの場合は、ネットワーク経路自体は確立しているため、接続要求はSSHDが動くはずのポートまで届きます。その上でSSHDが応答しないため、この場合のエラーは「Connection refused（接続を拒否された）」という形になり、「Connection timed out」とは異なる文言で出力されます。
 
-ただし、実際の現場では、この2種類のエラーメッセージだけで原因を確定させるのは早計です。「Connection timed out」はネットワーク未初期化以外にも、ファイアウォールによるパケットの遮断など、他の要因でも発生し得るためです。原因のレイヤーを確実に切り分けるには、第2回で整理した`ansible -m ping`やSSHコマンドによる直接確認と合わせて、疎通状況を段階的に確認していく必要があります。
+ただし、実際の現場では、この2種類のエラーメッセージだけで原因を確定させるのは早計です。「Connection timed out」はネットワーク未初期化以外にも、ファイアウォールによるパケットの遮断など、他の要因でも発生し得るためです。原因のレイヤーを確実に切り分けるには、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で整理した`ansible -m ping`やSSHコマンドによる直接確認と合わせて、疎通状況を段階的に確認していく必要があります。
 
 ---
 
@@ -184,7 +184,7 @@ Playbookの冒頭でこのモジュールを実行し、SSHポートへの疎通
 
 `wait_for`モジュールは、指定した`host`の`port`に対してTCPレベルでの接続を繰り返し試行し、接続が確立できた時点で次のタスクに進みます。`timeout`で指定した時間内に疎通が確認できなければ、タスクが失敗としてPlaybookの実行が止まります。
 
-ここで、第2回で扱った`wait_for_connection`モジュールとの違いを整理しておきます。名前が似ているため混同しやすいのですが、両者が確認している内容は異なります。
+ここで、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で扱った`wait_for_connection`モジュールとの違いを整理しておきます。名前が似ているため混同しやすいのですが、両者が確認している内容は異なります。
 
 |モジュール|確認する内容|向いている場面|
 |---|---|---|
@@ -226,11 +226,11 @@ resource "null_resource" "provision" {
 
 `time_sleep`リソースは、`depends_on`で指定したリソース（ここでは`docker_network.lab_net`）が作成された後、`create_duration`で指定した時間だけ待機してから、自身の作成完了を報告します。`null_resource.provision`はこの`time_sleep`に依存しているため、ネットワーク作成後、指定した時間が経過してからでなければAnsibleが実行されません。AWS環境であれば、`depends_on`の対象を`docker_network.lab_net`から`aws_security_group`などに置き換えることで、同じ考え方がそのまま適用できます。
 
-ここで一つ触れておく必要があります。このtime_sleepによる待機は、これまでの回で扱ってきた解決策とは異なる種類の対処に見えますが、構造としては第2回で扱ったsleepによる固定時間待機と同じ性質を持っています。`create_duration`で指定する秒数は、あらかじめ見積もった時間にすぎず、ネットワークが実際に通信可能な状態になったことを条件にしているわけではありません。第2回で整理した通り、この種の固定時間待機には、待機時間が環境依存であり、短すぎればラグの窓に引っかかり、長すぎれば時間を浪費するという限界が常につきまといます。
+ここで一つ触れておく必要があります。このtime_sleepによる待機は、これまでの回で扱ってきた解決策とは異なる種類の対処に見えますが、構造としては ****[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**** で扱ったsleepによる固定時間待機と同じ性質を持っています。`create_duration`で指定する秒数は、あらかじめ見積もった時間にすぎず、ネットワークが実際に通信可能な状態になったことを条件にしているわけではありません。**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で整理した通り、この種の固定時間待機には、待機時間が環境依存であり、短すぎればラグの窓に引っかかり、長すぎれば時間を浪費するという限界が常につきまといます。
 
 この限界が生じる背景には、Terraform側の事情があります。Terraformには、ネットワークが実際に通信可能かどうかを条件にした待機の仕組みが標準では用意されていません。`remote-exec`プロビジョナーはSSH接続そのものの確立を待てますが、それはSSHDというアプリケーション層の応答を確認しているのであって、ネットワーク層の疎通そのものを条件にしているわけではありません。そのため、Terraform側だけでネットワーク初期化ラグに対する確実な待機を組むことは難しく、`time_sleep`はあくまで保険的な最小待機という位置づけになります。
 
-実務上は、`time_sleep`を単独で使うのではなく、セクション5で扱った`wait_for`モジュールと組み合わせる構成が現実的です。`time_sleep`でごく短い最小限の待機を入れつつ、実際の疎通確認は`wait_for`側に委ねることで、固定時間待機の不確実性を`wait_for`が補う形になります。
+実務上は、`time_sleep`を単独で使うのではなく、**[セクション5](#5-解決パターンwait_forモジュールによるsshポート疎通待機)** で扱った`wait_for`モジュールと組み合わせる構成が現実的です。`time_sleep`でごく短い最小限の待機を入れつつ、実際の疎通確認は`wait_for`側に委ねることで、固定時間待機の不確実性を`wait_for`が補う形になります。
 
 |手法|制御する場所|向いている場面|
 |---|---|---|
@@ -248,9 +248,9 @@ resource "null_resource" "provision" {
 この回で整理した内容を確認します。
 
 - TerraformのAPIレスポンスとネットワーク初期化完了の間にはラグが存在し、このラグの間にAnsibleがSSH接続を試みるとタイムアウトが発生します。この構造は、Docker・AWS・オンプレミスを問わず共通して発生しうるものですが、ラグの大きさは環境によって大きく異なります
-- 第2回で扱ったSSHD起動タイミング問題と今回のネットワーク初期化ラグ問題は、「Ansibleが接続できない」という症状は同じですが、原因のレイヤーが異なります。「Connection refused」はSSHD未起動、「Connection timed out」はネットワーク未初期化を示すエラーであり、この違いから原因のレイヤーを切り分けられます
+- **[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で扱ったSSHD起動タイミング問題と今回のネットワーク初期化ラグ問題は、「Ansibleが接続できない」という症状は同じですが、原因のレイヤーが異なります。「Connection refused」はSSHD未起動、「Connection timed out」はネットワーク未初期化を示すエラーであり、この違いから原因のレイヤーを切り分けられます
 - `wait_for`モジュールは、SSHDの状態とは切り離してポートへのTCPレベルの疎通を確認できるため、ネットワーク初期化の反映待ちに向いています
-- `time_sleep`リソースはTerraform側で実行を遅延させる構成ですが、固定時間待機である以上、第2回で整理した`sleep`と同様の限界を持ちます。ネットワークの疎通そのものを条件にした待機はTerraform側では組みにくいため、`time_sleep`は保険的な最小待機として位置づけ、実際の疎通確認は`wait_for`モジュールに委ねる構成が現実的です
+- `time_sleep`リソースはTerraform側で実行を遅延させる構成ですが、固定時間待機である以上、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で整理した`sleep`と同様の限界を持ちます。ネットワークの疎通そのものを条件にした待機はTerraform側では組みにくいため、`time_sleep`は保険的な最小待機として位置づけ、実際の疎通確認は`wait_for`モジュールに委ねる構成が現実的です
 
 ---
 
@@ -260,7 +260,7 @@ resource "null_resource" "provision" {
 
 ## 8. 次回予告
 
-今回は、TerraformのAPIレスポンスとネットワーク初期化完了の間に存在するラグの構造と、第2回で扱ったSSHD起動タイミング問題との違いを整理しました。あわせて、`wait_for`モジュールと`time_sleep`リソースという2つの待機制御の方法を見てきました。
+今回は、TerraformのAPIレスポンスとネットワーク初期化完了の間に存在するラグの構造と、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** で扱ったSSHD起動タイミング問題との違いを整理しました。あわせて、`wait_for`モジュールと`time_sleep`リソースという2つの待機制御の方法を見てきました。
 
 ネットワーク初期化のラグが整理された後、次に直面するのは別の種類の問題です。第7回では、Ansibleを実行するコントロールノード側のPythonバージョンと、ターゲットOS内のPythonバージョンが一致しないことによる実行時エラーを取り上げます。
 
@@ -292,7 +292,7 @@ resource "null_resource" "provision" {
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
