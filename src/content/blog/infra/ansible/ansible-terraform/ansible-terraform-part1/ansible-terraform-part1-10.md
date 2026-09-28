@@ -48,11 +48,11 @@ table td:first-child {
 
 ## 1. はじめに
 
-第1回から第9回にかけて、TerraformとAnsibleを連携させる際に、環境構築の段階で直面するトラブルを一つずつ扱ってきました。SSH接続のタイミング、インベントリの形式、鍵のパーミッション、IPアドレスの変動、ネットワークの初期化、Pythonバージョンの不一致、並列処理の競合、権限昇格の設定ミス。これらは個別に見ると独立した問題ですが、いずれも「Terraformでリソースを生成してから、Ansibleが構成管理を始めるまで」という同じ区間で発生する問題です。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から第9回にかけて、TerraformとAnsibleを連携させる際に、環境構築の段階で直面するトラブルを一つずつ扱ってきました。SSH接続のタイミング、インベントリの形式、鍵のパーミッション、IPアドレスの変動、ネットワークの初期化、Pythonバージョンの不一致、並列処理の競合、権限昇格の設定ミス。これらは個別に見ると独立した問題ですが、いずれも「Terraformでリソースを生成してから、Ansibleが構成管理を始めるまで」という同じ区間で発生する問題です。
 
-第1回で整理した通り、この区間でトラブルが起きる根本には、AnsibleとTerraformがそれぞれ独立したツールとして動いており、片方の完了報告がもう片方にとって「安全に始めてよい」という保証にはならない、という構造があります。第2回から第9回で見てきた個別のトラブルは、この構造がさまざまな形で表面化したものでした。
+**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** で整理した通り、この区間でトラブルが起きる根本には、AnsibleとTerraformがそれぞれ独立したツールとして動いており、片方の完了報告がもう片方にとって「安全に始めてよい」という保証にはならない、という構造があります。**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** から **[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で見てきた個別のトラブルは、この構造がさまざまな形で表面化したものでした。
 
-この回では、第1回から第9回で得られた解決策を振り返り、それらを個別の対処としてではなく、TerraformからAnsibleへ一貫して安全に処理を移譲するための、一つの実行順序とコードテンプレートとして体系化します。
+この回では、**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から **[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で得られた解決策を振り返り、それらを個別の対処としてではなく、TerraformからAnsibleへ一貫して安全に処理を移譲するための、一つの実行順序とコードテンプレートとして体系化します。
 
 ---
 
@@ -285,13 +285,13 @@ resource "null_resource" "provision" {
 |`null_resource.provision`内の`remote-exec`|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** :SSH接続確立を条件にした待機|
 |`local-exec`内の`--forks=5`|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)** :Ansible側の並列度指定|
 
-このテンプレートで意識しているのは、第3節で整理した実行順序をそのままHCLに落とし込むことです。ネットワークが最小限待機された後、SSH接続の確立が`remote-exec`で確認されてから、初めて`local-exec`でAnsibleが呼び出されます。この時点で秘密鍵のパーミッションはすでに`0600`に設定済みであり、接続先のIPアドレスは固定されているため、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で扱ったインベントリとの不一致も起こりません。
+このテンプレートで意識しているのは、**[第3節](#3-terraformからansibleへの安全な実行順序)** で整理した実行順序をそのままHCLに落とし込むことです。ネットワークが最小限待機された後、SSH接続の確立が`remote-exec`で確認されてから、初めて`local-exec`でAnsibleが呼び出されます。この時点で秘密鍵のパーミッションはすでに`0600`に設定済みであり、接続先のIPアドレスは固定されているため、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で扱ったインベントリとの不一致も起こりません。
 
 **[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-09/)** で扱った`ansible_user`・become設定は、Terraform側ではなくAnsible側(インベントリ・group_vars)で扱う内容のため、次のセクションで整理します。
 
 ---
 
-[↑ 目次に戻る](#-目次)
+[↑ 目次に戻る](#目次)
 
 ---
 
@@ -405,7 +405,7 @@ forks = 5
       # ...
 ```
 
-`wait_for`(ネットワーク疎通、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**)と`wait_for_connection`(SSHD起動、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** は、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)** セクション5で整理した通り確認している対象が異なるため、両方を冒頭に置いています。`wait_for`でネットワーク経路の確立を確認したうえで、`wait_for_connection`でSSHDが実際に応答できる状態かを確認する、という2段階の待機です。
+`wait_for`(ネットワーク疎通、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)**)と`wait_for_connection`(SSHD起動、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** は、**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)** **[セクション5](#5-ansible側のテンプレート構成)** で整理した通り確認している対象が異なるため、両方を冒頭に置いています。`wait_for`でネットワーク経路の確立を確認したうえで、`wait_for_connection`でSSHDが実際に応答できる状態かを確認する、という2段階の待機です。
 
 各要素と対応する回を整理します。
 
@@ -439,7 +439,7 @@ forks = 5
 
 ---
 
-[↑ 目次に戻る](#-目次)
+[↑ 目次に戻る](#目次)
 
 ---
 
@@ -447,7 +447,7 @@ forks = 5
 
 第1部(第1〜10回)では、Terraformでリソースを生成してからAnsibleが構成管理を始めるまでの、環境構築・連携時のトラブルを扱ってきました。第2部(第11〜20回)からは、視点が「構築時」から「構築後の継続運用」に移ります。
 
-第11回では、構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が生じる問題を取り上げます。ドリフトシリーズで扱った内容が、Ansible×Terraform環境でどのように現れるかを見ていきます。
+第11回では、構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が生じる問題を取り上げます。**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** で扱った内容が、Ansible×Terraform環境でどのように現れるかを見ていきます。
 
 **[次回：第11回：手動変更による構成ドリフトの検知と同期手法](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**
 
@@ -465,7 +465,7 @@ forks = 5
 
 ---
 
-[↑ 目次に戻る](#-目次)
+[↑ 目次に戻る](#目次)
 
 ---
 
@@ -476,7 +476,7 @@ forks = 5
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
