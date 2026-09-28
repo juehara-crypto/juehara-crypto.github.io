@@ -88,7 +88,7 @@ Dockerのベースイメージは、イメージのビルド時点でどのユ�
 |AWS|Amazon Linux 2 AMI|`ec2-user`|
 |GCP|Debianベースのイメージファミリー|`debian`|
 
-Terraformは、このイメージやAMIを「どれを使うか」という単位で指定しますが、そのイメージの中にどのユーザーが用意されているかまでは、Terraformのリソース定義の対象外です。第7回でPythonバージョンについて確認したのと同じように、「土台となるイメージの中身」はTerraformの管理範囲の外にあります。
+Terraformは、このイメージやAMIを「どれを使うか」という単位で指定しますが、そのイメージの中にどのユーザーが用意されているかまでは、Terraformのリソース定義の対象外です。**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-07/)** でPythonバージョンについて確認したのと同じように、「土台となるイメージの中身」はTerraformの管理範囲の外にあります。
 
 このため、Terraformが参照するイメージを切り替えると、Ansible側から見た「接続すべきユーザー」も切り替える必要が生じます。イメージAでは`ubuntu`ユーザーで接続できていたのに、イメージBに差し替えた途端、`ubuntu`というユーザー自体が存在せず接続できない、という状況が起こり得ます。
 
@@ -151,7 +151,7 @@ Terraformがプロビジョニングしたコンテナのデフォルトユー�
 
 ## 4. 権限昇格失敗エラーの再現
 
-第2セクションでは、ディストリビューションの違いとイメージの作り方の違いの両方が、デフォルトユーザーの差を生む要因になることを整理しました。本検証環境では、ディストリビューションを揃えたまま、Dockerfileでのユーザー作成方法の違いによってデフォルトユーザーが異なる状況を再現することに注力します。target-node1は既存の`ansible`ユーザー、target-node2・target-node3は新しく`deploy`ユーザーを作成したイメージに切り替え、そのうえでtarget-node3のみsudoersのNOPASSWD設定を持たない状態にしています。この状態で、第3セクションで整理した①・②のパターンをそれぞれ実機で再現します。
+**[第2セクション](#2-コンテナイメージごとに異なるデフォルトユーザーの構造)** では、ディストリビューションの違いとイメージの作り方の違いの両方が、デフォルトユーザーの差を生む要因になることを整理しました。本検証環境では、ディストリビューションを揃えたまま、Dockerfileでのユーザー作成方法の違いによってデフォルトユーザーが異なる状況を再現することに注力します。target-node1は既存の`ansible`ユーザー、target-node2・target-node3は新しく`deploy`ユーザーを作成したイメージに切り替え、そのうえでtarget-node3のみsudoersのNOPASSWD設定を持たない状態にしています。この状態で、**[第3セクション](#3-ansible_userbecomebecome_userの関係)** で整理した①・②のパターンをそれぞれ実機で再現します。
 
 ### ■ 検証内容
 
@@ -385,7 +385,7 @@ root
 
 ①の検証では、`ansible_user`にコンテナの実際のユーザーと異なる値を指定したことで、SSH接続そのものが`Permission denied`で拒否されました。これは第3セクションで整理した「①`ansible_user`とコンテナのデフォルトユーザーが一致していない」パターンにあたり、`become`の設定以前の問題です。
 
-②の検証では、`ansible_user`を正しく合わせたことでSSH接続は成功しましたが、target-node3のみ`become`実行時に`Missing sudo password`で失敗しました。これは第3セクションで整理した「②`become`をtrueにしているがsudoersに設定がない」パターンにあたります。target-node2は同じ`deploy`ユーザーでありながらsudoersにNOPASSWDが設定されているため成功しており、接続ユーザーが同じであっても、sudoers側の設定次第で結果が変わることが分かります。
+②の検証では、`ansible_user`を正しく合わせたことでSSH接続は成功しましたが、target-node3のみ`become`実行時に`Missing sudo password`で失敗しました。これは **[第3セクション]((#3-ansible_userbecomebecome_userの関係))** で整理した「②`become`をtrueにしているがsudoersに設定がない」パターンにあたります。target-node2は同じ`deploy`ユーザーでありながらsudoersにNOPASSWDが設定されているため成功しており、接続ユーザーが同じであっても、sudoers側の設定次第で結果が変わることが分かります。
 
 なお、`[WARNING]: Found variable using reserved name: become` / `become_user`という警告も出ています。これは、`[target_nodes:vars]`で`become`・`become_user`という変数名をそのまま使うと、Ansibleの予約変数と紛らわしいという警告であり、動作自体には影響していません。正式には`ansible_become`・`ansible_become_user`という接頭辞付きの変数名を使うのが正しい書き方です。次のセクションでは、この正しい書き方も含めて、インベントリでの設定方法を整理します。
 
@@ -397,13 +397,13 @@ root
 
 ## 5. 解決パターン①：インベントリ・group_varsでコンテナごとにbecome設定を指定する
 
-セクション4で確認した通り、`ansible_user`をコンテナの実際のユーザーに正しく合わせることで、SSH接続自体の失敗は解消できます。ここでは、複数コンテナに異なるユーザー・become設定をインベントリ・group_varsで指定する構成を整理します。
+**[セクション4](#4-権限昇格失敗エラーの再現)** で確認した通り、`ansible_user`をコンテナの実際のユーザーに正しく合わせることで、SSH接続自体の失敗は解消できます。ここでは、複数コンテナに異なるユーザー・become設定をインベントリ・group_varsで指定する構成を整理します。
 
 ### ■ 検証内容
 
 target-node1は`ansible`ユーザー、target-node2・target-node3は`deploy`ユーザーという構成に対し、インベントリでコンテナごとに正しい`ansible_user`を指定したうえで、`become`関連の設定を正式な変数名で指定します。
 
-セクション4の②の検証では、`[target_nodes:vars]`に`become`・`become_user`という変数名をそのまま使ったところ、`Found variable using reserved name`という警告が出ていました。これは、Ansibleが接続・実行に関わる変数には`ansible_`という接頭辞を付けることを前提としているためです。正式には、以下のように`ansible_become`・`ansible_become_user`という接頭辞付きの変数名を使います。
+**[セクション4](#4-権限昇格失敗エラーの再現)** の②の検証では、`[target_nodes:vars]`に`become`・`become_user`という変数名をそのまま使ったところ、`Found variable using reserved name`という警告が出ていました。これは、Ansibleが接続・実行に関わる変数には`ansible_`という接頭辞を付けることを前提としているためです。正式には、以下のように`ansible_become`・`ansible_become_user`という接頭辞付きの変数名を使います。
 
 - **ファイル名：`inventory.ini`**
 
@@ -439,7 +439,7 @@ target-node1 | CHANGED | rc=0 >>
 root
 ```
 
-セクション4の②で出ていた`Found variable using reserved name`の警告が、この書き方では出ていません。target-node1・target-node2は`whoami`が`root`として実行され成功していますが、target-node3は引き続き`Missing sudo password`で失敗しています。これは、`ansible_user`とbecomeの設定が正しく指定されていても、target-node3にはsudoersのNOPASSWD設定自体が存在しないため、この設定だけでは解決しないことを示しています。
+**[セクション4](#4-権限昇格失敗エラーの再現)** の②で出ていた`Found variable using reserved name`の警告が、この書き方では出ていません。target-node1・target-node2は`whoami`が`root`として実行され成功していますが、target-node3は引き続き`Missing sudo password`で失敗しています。これは、`ansible_user`とbecomeの設定が正しく指定されていても、target-node3にはsudoersのNOPASSWD設定自体が存在しないため、この設定だけでは解決しないことを示しています。
 
 ### ■ 結果
 
@@ -466,7 +466,7 @@ target-node3のsudoers未設定という問題自体は、インベントリ側�
 
 ## 6. 解決パターン②：sudoersのNOPASSWD設定をTerraformのプロビジョニングで行う
 
-セクション5では、インベントリ側で`ansible_user`・`ansible_become`を正しく指定しても、target-node3のsudoers未設定という問題自体は解決しないことを確認しました。ここでは、Terraform側が参照するイメージ定義そのものにNOPASSWD設定を組み込むことで、この問題を解決します。
+**[セクション5](#5-解決パターンインベントリgroup_varsでコンテナごとにbecome設定を指定する)** では、インベントリ側で`ansible_user`・`ansible_become`を正しく指定しても、target-node3のsudoers未設定という問題自体は解決しないことを確認しました。ここでは、Terraform側が参照するイメージ定義そのものにNOPASSWD設定を組み込むことで、この問題を解決します。
 
 ### ■ 検証内容
 
@@ -620,14 +620,14 @@ Dockerfileにsudoers設定を追記しただけでは、`terraform apply`を実�
 
 `-replace`オプションで明示的に再ビルドを強制することで、sudoers設定は意図通り反映され、target-node3でもbecomeが成功するようになりました。
 
-セクション5との使い分けを整理します。
+**[セクション5](#5-解決パターンインベントリgroup_varsでコンテナごとにbecome設定を指定する)** との使い分けを整理します。
 
 |手法|解決する問題|向いている場面|
 |---|---|---|
 |インベントリ・group_varsでコンテナごとに指定|`ansible_user`とデフォルトユーザーの不一致|コンテナごとにデフォルトユーザーが異なる場合|
 |Terraformプロビジョニング(Dockerfile)でNOPASSWD設定|sudoersが未設定であることによるbecomeの失敗|そもそもターゲット側にsudo実行の許可自体が存在しない場合|
 
-セクション5の対応は、Ansible側の設定を正しく合わせる手段であるのに対し、セクション6の対応は、ターゲット側にsudo実行の許可そのものを用意する手段です。今回のtarget-node3のように、sudoers設定自体が存在しない場合は、Ansible側の設定をいくら調整しても解決せず、ターゲット側の状態を変える必要があります。
+**[セクション5](#5-解決パターンインベントリgroup_varsでコンテナごとにbecome設定を指定する)** の対応は、Ansible側の設定を正しく合わせる手段であるのに対し、**[セクション6](#6-解決パターンsudoersのnopasswd設定をterraformのプロビジョニングで行う)** の対応は、ターゲット側にsudo実行の許可そのものを用意する手段です。今回のtarget-node3のように、sudoers設定自体が存在しない場合は、Ansible側の設定をいくら調整しても解決せず、ターゲット側の状態を変える必要があります。
 
 ---
 
