@@ -92,7 +92,7 @@ flowchart TD
 - ターゲットにPythonが存在しない場合、あるいはAnsibleが想定する最低バージョンを満たさない場合、モジュールの転送は成功しても、実行の段階でエラーになる
 - YAMLでPlaybookを書いている限り、執筆者が直接Pythonのコードを意識することはないが、実行時にはターゲット側のPython環境が常に介在している
 
-Ansibleは、デフォルトではターゲット上のPythonインタプリタのパスを自動的に探索します。このため、ターゲット側にPythonが標準的な場所に存在していれば、通常は特別な設定なしに動作します。問題は、この探索によって見つかったPythonのバージョンそのものが、Ansibleの実行を支えるコード（`ansible.module_utils`）の要求を満たしていない場合に起こります。この場合、Ansible側でどのパスを使うかを指定し直しても、根本的な解決にはなりません。この点は、セクション5で実機を使って確認します。
+Ansibleは、デフォルトではターゲット上のPythonインタプリタのパスを自動的に探索します。このため、ターゲット側にPythonが標準的な場所に存在していれば、通常は特別な設定なしに動作します。問題は、この探索によって見つかったPythonのバージョンそのものが、Ansibleの実行を支えるコード（`ansible.module_utils`）の要求を満たしていない場合に起こります。この場合、Ansible側でどのパスを使うかを指定し直しても、根本的な解決にはなりません。この点は、**[セクション5](#5-解決パターンansible_python_interpreterによるpythonパスの明示指定)** で実機を使って確認します。
 
 **[冪等性シリーズ第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-07/)** では、同じPlaybookでも実行対象のOSやディストリビューションが異なると、モジュールの内部動作が変わり、結果が変わってしまう問題を扱いました。これは、モジュールのコード自体は同じでも、それを解釈して実行するインタプリタ側の環境（今回で言えばPythonのバージョン）が異なれば、実行結果が変わり得るという、同じ構造の一部です。今回はこの環境差分の中でも、Pythonのバージョンという一点に絞って掘り下げていきます。
 
@@ -293,7 +293,7 @@ target-node2・target-node3は`SUCCESS`で`pong`が返っていますが、targe
 
 `module_stdout`のトレースバックを追うと、エラーが起きているのは`ansible.module_utils.basic`をインポートしている箇所です。この`basic.py`の中には`from __future__ import annotations`という記述が含まれています。この構文はPython 3.7以降で導入されたものであり、Python 3.6のインタプリタはこの構文自体を解釈できません。その結果、モジュールのコードを実行する以前の、インポートの段階で処理が止まっています。
 
-これは、セクション2で整理した「Ansibleはターゲット側のPythonでモジュールを実行する」という構造が、そのままエラーとして表れた例です。Ansible本体のコード（`ansible.module_utils.basic`）自体が、ある程度新しいPythonの構文を前提に書かれているため、ターゲット側のPythonがそれより古いと、モジュールの実行以前にインポートの段階で失敗します。今回使用した`ansible-core 2.17`は、Python 3.6をターゲットのサポート対象外としており、今回のエラーはその境界を実際に踏み越えたことで発生したものです。
+これは、**[セクション2](#2-ansibleがターゲットのpythonを使う構造)** で整理した「Ansibleはターゲット側のPythonでモジュールを実行する」という構造が、そのままエラーとして表れた例です。Ansible本体のコード（`ansible.module_utils.basic`）自体が、ある程度新しいPythonの構文を前提に書かれているため、ターゲット側のPythonがそれより古いと、モジュールの実行以前にインポートの段階で失敗します。今回使用した`ansible-core 2.17`は、Python 3.6をターゲットのサポート対象外としており、今回のエラーはその境界を実際に踏み越えたことで発生したものです。
 
 なお、`[WARNING]`として表示されている「Python interpreter discovery」に関する警告は、Ansibleがターゲット上のPythonパスを自動探索した際に、確定的な特定ができなかったことを示しています。次のセクションでは、この自動探索に頼らずPythonのパスを明示的に指定する方法を確認します。
 
@@ -305,7 +305,7 @@ target-node2・target-node3は`SUCCESS`で`pong`が返っていますが、targe
 
 ## 5. 解決パターン①：`ansible_python_interpreter`によるPythonパスの明示指定
 
-セクション4で発生したエラーに対して、`ansible_python_interpreter`変数でPythonのパスを明示的に指定した場合、この問題が解決するかどうかを実機で確認します。
+**[セクション4](#4-実行時エラーの再現)** で発生したエラーに対して、`ansible_python_interpreter`変数でPythonのパスを明示的に指定した場合、この問題が解決するかどうかを実機で確認します。
 
 `ansible_python_interpreter`は、Ansibleが自動的に行うPythonパスの探索に頼らず、使用するPythonのパスを明示的に指定するための変数です。インベントリの`host_vars`やインベントリファイル自体に記述しておくことで、実行のたびに対象ホストがどのパスのPythonを使うかを固定できます。
 
@@ -341,7 +341,7 @@ target-node1 | FAILED! => {
 
 ### ■ 結果
 
-`ansible_python_interpreter`でパスを明示的に指定しても、セクション4と同じ`SyntaxError: future feature annotations is not defined`が発生し、エラーは解決しませんでした。
+`ansible_python_interpreter`でパスを明示的に指定しても、**[セクション4](#4-実行時エラーの再現)** と同じ`SyntaxError: future feature annotations is not defined`が発生し、エラーは解決しませんでした。
 
 この結果は、`ansible_python_interpreter`が何を解決する変数なのかを考えると、当然の結果です。この変数が制御しているのは「ターゲット上の、どのパスにあるPythonを使うか」という選択の部分であり、「そのPython自体がAnsibleの要求するバージョンを満たしているか」までは関知しません。target-node1には元々Python 3.6.9しか存在しないため、パスを`/usr/bin/python3`と明示しても、指し示す先は変わらず同じPython 3.6.9のままです。
 
@@ -498,13 +498,13 @@ target-node3 | SUCCESS => {
 
 ### ■ 結果
 
-3台とも`Python 3.10.12`に統一され、`ansible all -m ping`もすべて`SUCCESS`になりました。セクション4で発生した`SyntaxError`は、Terraformが参照するイメージを揃えることで解消されています。
+3台とも`Python 3.10.12`に統一され、`ansible all -m ping`もすべて`SUCCESS`になりました。**[セクション4](#4-実行時エラーの再現)** で発生した`SyntaxError`は、Terraformが参照するイメージを揃えることで解消されています。
 
 ここで一点、注目しておきたい事実があります。今回`terraform apply`のプランには、`docker_image.ansible_target`自体の再ビルド（変更）は現れませんでした。再生成されたのは3台のコンテナと`local_file.ansible_inventory`のみで、イメージのsha256は変化していません。これは、Ubuntu 22.04のリポジトリでは、`python3`というパッケージ名のデフォルトが、もともと`python3.10`を指しているためです。つまり今回のケースでは、バージョンを明示してもしなくても、実際にインストールされる中身は結果的に同じでした。
 
 ここで重要なのは、この一致が「今のリポジトリの状態だから、たまたま一致している」という点です。`python3`という指定のままでは、将来Ubuntu側のリポジトリでデフォルトパッケージが新しいバージョン（3.11や3.12など）に更新された場合、そのタイミングでイメージを再ビルドすると、意図せずターゲットのPythonバージョンが変わってしまいます。`python3.10`と明示しておけば、リポジトリ側のデフォルトが変わっても、ビルドされるイメージのPythonバージョンは変わりません。
 
-この構造は、ドリフトシリーズで扱った「宣言（コード）と実際の状態が、外部要因によって食い違っていく」問題と近い性質を持っています。ただし、ドリフトシリーズが主に扱ったのは、一度構築された状態が後から手動変更などによってずれていく現象でした。今回の問題は、同じ`Dockerfile`という宣言を元にしていても、ビルドするタイミングによって参照先の外部リポジトリの状態が変われば、最初から異なる結果が生まれ得るという、再現性の問題です。「後からずれる」ドリフトとは厳密には異なりますが、「宣言だけでは実際の状態が一意に定まらず、外部の可変な依存先に結果が左右される」という点では、根っこに共通する構造があると言えます。
+この構造は、**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** で扱った「宣言（コード）と実際の状態が、外部要因によって食い違っていく」問題と近い性質を持っています。ただし、**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** が主に扱ったのは、一度構築された状態が後から手動変更などによってずれていく現象でした。今回の問題は、同じ`Dockerfile`という宣言を元にしていても、ビルドするタイミングによって参照先の外部リポジトリの状態が変われば、最初から異なる結果が生まれ得るという、再現性の問題です。「後からずれる」ドリフトとは厳密には異なりますが、「宣言だけでは実際の状態が一意に定まらず、外部の可変な依存先に結果が左右される」という点では、根っこに共通する構造があると言えます。
 
 セクション5で確認した`ansible_python_interpreter`と、この解決パターンの使い分けを整理します。
 
@@ -569,7 +569,7 @@ Pythonバージョンの問題が解消された後、次に直面するのは�
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
