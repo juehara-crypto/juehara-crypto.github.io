@@ -81,9 +81,9 @@ VM環境とコンテナ環境では、リソース生成完了からSSHDが接�
 
 ```mermaid
 flowchart TD
-    A["Terraform: リソース生成のAPIリクエスト"] --> B["クラウド/ハイパーバイザー側で処理"]
+    A["Terraform: リソース生成のAPIリクエスト"] --> B["クラウド/<br/>ハイパーバイザー側で処理"]
     B --> C["TerraformがAPIレスポンスを受け取る<br/>（リソース生成完了）"]
-    C --> D["OSのブート処理<br/>BIOS/ブートローダー→カーネル→systemd"]
+    C --> D["OSのブート処理<br/>BIOS/ブートローダー<br/>→カーネル→systemd"]
     D --> E["SSHDプロセスが起動"]
     E --> F["SSH接続を受け付け可能"]
 ```
@@ -119,7 +119,7 @@ VM環境ではBIOS起動からsystemdによるサービス起動までのブー�
 
 ## 3. 実装方式によるタイムラグの顕在化しやすさの違い
 
-セクション2で解説した「管理レイヤーの違い」は、コードの実行タイミングにもそのまま現れます。
+**[セクション2](#2-terraformのapiレスポンスとsshd起動完了のタイムラグ)** で解説した「管理レイヤーの違い」は、コードの実行タイミングにもそのまま現れます。
 
 Terraformが「リソース作成完了」と判断する基準は、あくまでAPIからレスポンスが返ってきた瞬間です。そのリソース内部でSSHDが実際に接続を受け付けられる状態になっているかどうかは、Terraformの管理範囲の外（Ansible側の領域）にあります。この管理範囲のギャップを無視し、`local-exec`プロビジョナーでAnsibleを即座に起動すると、リソース生成直後にAnsibleが実行されます。
 
@@ -161,7 +161,7 @@ resource "null_resource" "provision" {
 `local-exec`でAnsibleを起動する前に一定時間待つだけの構成であり、実装としては最も手軽です。しかし、この構成には次のような限界があります。
 
 - **待機時間が環境依存である**：VM環境ではブート工程にかかる時間が、マシンスペック・イメージの内容・同時に起動するリソース数によって変動します。コンテナ環境でも、ホストマシンの負荷状況によって起動にかかる時間は変わり得ます。「何秒待てば十分か」という基準は、環境ごとに変わってしまいます。
-- **待機時間の設定を誤ると、どちらに転んでも問題が残る**：短すぎれば、セクション3で見たタイムラグの窓に引っかかり、接続失敗が起こり得ます。長すぎれば、実際にはとっくにSSHDが起動可能な状態になっているにもかかわらず、その分の時間をただ浪費することになります。
+- **待機時間の設定を誤ると、どちらに転んでも問題が残る**：短すぎれば、**[セクション3](#3-実装方式によるタイムラグの顕在化しやすさの違い)** で見たタイムラグの窓に引っかかり、接続失敗が起こり得ます。長すぎれば、実際にはとっくにSSHDが起動可能な状態になっているにもかかわらず、その分の時間をただ浪費することになります。
 
 さらに根本的な問題として、`sleep`はSSHDの状態を一切確認していません。「これくらい待てば、たぶん起動しているだろう」という見積もりに過ぎず、SSHDが実際に接続を受け付けられる状態になったかどうかを条件にしているわけではありません。ある環境ではたまたま十分な時間だったとしても、別の環境やタイミングでは同じ待機時間で足りるとは限らない、という不確実性が常につきまといます。
 
@@ -306,7 +306,7 @@ SSH接続が確立できたとしても、次に直面するのは別の問題�
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
