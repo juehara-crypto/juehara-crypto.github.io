@@ -64,7 +64,7 @@ table td:first-child {
 
 このシリーズでは、その「境界が崩れる構造」を具体的に掘り下げていきます。第1回は、そのための土台として、AnsibleとTerraformがそれぞれ何を管理するツールなのかを整理します。
 
-なお、このシリーズは冪等性シリーズ・ドリフトシリーズ・Moleculeシリーズと内容的なつながりがあります。冪等性シリーズが「壊れない設計」を、ドリフトシリーズが「それでもずれていく理由」を、Moleculeシリーズが「ずれていないことを継続的に確認する仕組み」を扱ったのに対し、本シリーズはこれらを踏まえた上で、「複数ツールが連携する環境で何が起きるか」を扱います。前3シリーズを読まれた方には、そこで整理した内容がAnsible×Terraform環境でどう現れるかの答え合わせとして、初めて読まれる方には、これから整理していく内容の入り口として、読み進めていただけます。
+なお、このシリーズは **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**・**[Moleculeシリーズ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)** と内容的なつながりがあります。冪等性シリーズが「壊れない設計」を、ドリフトシリーズが「それでもずれていく理由」を、Moleculeシリーズが「ずれていないことを継続的に確認する仕組み」を扱ったのに対し、本シリーズはこれらを踏まえた上で、「複数ツールが連携する環境で何が起きるか」を扱います。前3シリーズを読まれた方には、そこで整理した内容がAnsible×Terraform環境でどう現れるかの答え合わせとして、初めて読まれる方には、これから整理していく内容の入り口として、読み進めていただけます。
 
 ---
 
@@ -83,7 +83,7 @@ AnsibleとTerraformは、どちらもインフラを自動化するツールで�
 
 Terraformは、HCLで書かれたコードをもとに「このリソースがこの状態で存在すること」を宣言し、現在のインフラの状態（tfstate）と比較して差分を適用します。VMを作る・コンテナを起動する・ネットワークを構築するといった、インフラそのものの生成・変更・削除がTerraformの管理範囲です。
 
-Ansibleは、Terraformが生成したリソースの上で動くOSに対して、パッケージのインストール・設定ファイルの配置・サービスの起動といったタスクを順に実行します。冪等性シリーズで見てきた通り、Ansibleのモジュールは現在の状態を観測してから動作しますが、その観測対象はあくまで「リソースの中」です。リソース自体の生成・削除はAnsibleの管理範囲に含まれません。
+Ansibleは、Terraformが生成したリソースの上で動くOSに対して、パッケージのインストール・設定ファイルの配置・サービスの起動といったタスクを順に実行します。**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** で見てきた通り、Ansibleのモジュールは現在の状態を観測してから動作しますが、その観測対象はあくまで「リソースの中」です。リソース自体の生成・削除はAnsibleの管理範囲に含まれません。
 
 この2つのレイヤーは、次のように整理できます。
 
@@ -97,7 +97,7 @@ flowchart TD
 
 図で示した通り、Terraformが担うのは「リソースを用意するところまで」であり、Ansibleが担うのは「用意されたリソースの中身を整えるところから」です。両者は連続した処理として繋がっていますが、管理しているレイヤー自体は別物です。
 
-この対応関係は、VMかコンテナかによって変わるものではありません。Terraformが`kreuzwerker/docker`のようなプロバイダーでコンテナを生成する場合も、AWSやGCPでVMを生成する場合も、「リソースを生成するのがTerraform」「その中身を整えるのがAnsible」という役割分担そのものは変わりません。本シリーズの検証では主にDockerコンテナを使いますが、これから示す構造はプロバイダーに依存しない話として読み進めていただけます。
+この対応関係は、VMかコンテナかによって変わるものではありません。Terraformが`kreuzwerker/docker`のようなプロバイダーでコンテナを生成する場合も、AWSやGCPでVMを生成する場合も、「リソースを生成するのがTerraform」「その中身を整えるのがAnsible」という役割分担そのものは変わりません。本シリーズの検証では主にDockerコンテナを使いますが、これから示す構造は **プロバイダーに依存しない** 話として読み進めていただけます。
 
 この管理レイヤーの違いを意識せずに設計すると、次のセクションで扱うようなアンチパターンが生まれます。「Terraformで作ったリソースの中身も、なんとなくTerraform側で完結させたい」「Ansible側でインフラの状態まで面倒を見てしまえば早い」といった発想が、役割の境界を曖昧にする出発点になります。
 
@@ -142,7 +142,7 @@ resource "null_resource" "provision" {
 }
 ```
 
-この構成は現場でもよく見られるパターンです。`local-exec`はTerraformのリソースが作成されたタイミングで一度だけ実行されるプロビジョナーであり、SSH接続のタイミング・Ansible側の冪等性の制御・エラーハンドリングのいずれもTerraform側の実行フローに依存することになります。第2回では、この構成を前提としたSSH接続タイミングの問題を扱います。
+この構成は現場でもよく見られるパターンです。`local-exec`はTerraformのリソースが作成されたタイミングで一度だけ実行されるプロビジョナーであり、SSH接続のタイミング・Ansible側の冪等性の制御・エラーハンドリングのいずれもTerraform側の実行フローに依存することになります。**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)** では、この構成を前提としたSSH接続タイミングの問題を扱います。
 
 ### ③ 同一リソースの同一設定をAnsibleとTerraformが二重管理する構成
 
@@ -167,7 +167,7 @@ resource "docker_container" "target" {
 
 ---
 
-この3つのアンチパターンに共通しているのは、Terraformの管理範囲とAnsibleの管理範囲のどちらか一方に処理を寄せすぎる、あるいは同じ対象を両方が触ってしまうという点です。第2節で示したレイヤーの境界が、実際のコード上では簡単に崩れることが分かります。
+この3つのアンチパターンに共通しているのは、Terraformの管理範囲とAnsibleの管理範囲のどちらか一方に処理を寄せすぎる、あるいは同じ対象を両方が触ってしまうという点です。**[第2節](#2-ansibleとterraformの管理範囲)** で示したレイヤーの境界が、実際のコード上では簡単に崩れることが分かります。
 
 ---
 
@@ -183,9 +183,9 @@ resource "docker_container" "target" {
 - **構成ドリフト**：AnsibleとTerraformが同一設定を二重管理する構成では、どちらか一方が実行されるたびに、もう一方が設定した値が意識されないまま上書きされます。表面上は「最新の実行結果」が反映されているように見えても、実際にはどちらの定義が正なのかが構成上定まっていないため、実行順序によって最終的な状態が変わり続けます。
 - **デバッグの困難**：エラーが発生した場合、Terraformの実行ログとAnsibleの実行ログにまたがって出力されるため、原因がリソース生成側にあるのか構成管理側にあるのかを切り分けるのに時間がかかります。特にlocal-exec経由でAnsibleを呼んでいる構成では、Ansible側のタスクエラーがTerraformの`apply`失敗としてまとめて報告されるため、Terraformのログだけを見ても原因が分かりません。
 
-これらの問題は、第3節で示したアンチパターンのいずれか一つに起因するとは限りません。実際には複数のアンチパターンが組み合わさって発生することが多く、「local-execで冪等性が崩れているうえに、二重管理でドリフトも起きている」という状態になることも珍しくありません。
+これらの問題は、**[第3節](#3-連携時の設計アンチパターン)** で示したアンチパターンのいずれか一つに起因するとは限りません。実際には複数のアンチパターンが組み合わさって発生することが多く、「local-execで冪等性が崩れているうえに、二重管理でドリフトも起きている」という状態になることも珍しくありません。
 
-この3つの問題が、本シリーズの第2回以降で扱う個別のトラブルの背景にあります。どの回がどのアンチパターンに起因しているかは、第6節の全体像で改めて整理します。
+この3つの問題が、本シリーズの第2回以降で扱う個別のトラブルの背景にあります。どの回がどのアンチパターンに起因しているかは、**[第6節](#6-このシリーズで扱う内容の全体像)** の全体像で改めて整理します。
 
 ---
 
@@ -195,13 +195,13 @@ resource "docker_container" "target" {
 
 ## 5. 冪等性・ドリフトシリーズとの接続
 
-前セクションで整理した「冪等性の崩壊」と「構成ドリフト」は、実は新しい問題ではありません。冪等性シリーズ・ドリフトシリーズですでに扱った問題が、Ansible×Terraform連携という別の文脈で発現しているだけです。対応関係を整理します。
+前セクションで整理した「冪等性の崩壊」と「構成ドリフト」は、実は新しい問題ではありません。**[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** ですでに扱った問題が、Ansible×Terraform連携という別の文脈で発現しているだけです。対応関係を整理します。
 
 | 過去シリーズ          | 連携での発現文脈                               |
 | --------------- | -------------------------------------- |
-| 冪等性シリーズ第1・4回    | local-exec経由でAnsibleを複数回呼び出す構成で、冪等でないタスクが累積して実行される       |
-| ドリフトシリーズ第0・1・3回 | terraform applyによるリソース再生成後にAnsible設定が消失する・二重管理による上書きでドリフトが発生する |
-| ドリフトシリーズ第2回     | AnsibleとTerraformの管理範囲が重複する領域では、どちらのツールでも状態の全体像を把握できない       |
+| 冪等性シリーズ第 **[1](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)**・**[4](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-04/)** 回    | local-exec経由でAnsibleを複数回呼び出す構成で、冪等でないタスクが累積して実行される       |
+| ドリフトシリーズ第 **[0](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-00/)**・**[1](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-01/)**・**[3](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-03/)** 回 | terraform applyによるリソース再生成後にAnsible設定が消失する・二重管理による上書きでドリフトが発生する |
+| **[ドリフトシリーズ第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)**     | AnsibleとTerraformの管理範囲が重複する領域では、どちらのツールでも状態の全体像を把握できない       |
 
 1行目は、**[冪等性シリーズ第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** で確認した「shellモジュールは現在の状態を観測する仕組みを持たない」という構造がそのまま当てはまります。local-exec経由でAnsibleが繰り返し呼び出される構成では、Playbook内にshellモジュールや`state: latest`のような非冪等な要素が含まれていた場合、その影響がterraform applyのたびに積み重なります。冪等性シリーズが扱っていたのは「Playbook単体の設計問題」でしたが、ここではそれがTerraformの実行フローによって繰り返される回数までコントロールできなくなる、という形で現れます。
 
@@ -209,7 +209,7 @@ resource "docker_container" "target" {
 
 3行目は、**[ドリフトシリーズ第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-02/)** で確認した「`--check`が確認しているのはあくまでPlaybookが管理している範囲の差分であり、その範囲外は確認対象にすら含まれない」という構造の延長です。AnsibleとTerraformの管理範囲が重複する領域では、Ansibleの`--check`もTerraformの`plan`も、それぞれ自分が管理している範囲の差分しか示しません。どちらか一方の確認結果だけでは、連携環境全体の状態を把握したことにはなりません。
 
-なお、Moleculeシリーズとの接続は第34回（Testinfraによる状態検証をパイプラインに組み込む回）で扱うため、ここでは触れません。
+なお、**[Moleculeシリーズ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)** との接続は **[第34回（Testinfraによる状態検証をパイプラインに組み込む回）](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-34/)** で扱うため、ここでは触れません。
 
 ---
 
@@ -219,7 +219,7 @@ resource "docker_container" "target" {
 
 ## 6. このシリーズで扱う内容の全体像
 
-ここまでで、AnsibleとTerraformの管理レイヤーの違い、それを意識しない設計が引き起こすアンチパターン、そして冪等性シリーズ・ドリフトシリーズで扱った問題との対応関係を見てきました。ここからは、このシリーズ全体が何を扱っていくのかを整理します。
+ここまでで、AnsibleとTerraformの管理レイヤーの違い、それを意識しない設計が引き起こすアンチパターン、そして **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**・**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** で扱った問題との対応関係を見てきました。ここからは、このシリーズ全体が何を扱っていくのかを整理します。
 
 本シリーズは全50回、5部構成です。
 
@@ -233,15 +233,15 @@ resource "docker_container" "target" {
 
 第1部（環境構築・連携編）は、今回の第1回を含む10回で構成されます。第2回以降で扱うSSH接続タイミング・インベントリのパースエラー・秘密鍵のパーミッション・IPアドレス変動・ネットワーク初期化のラグ・Pythonバージョンの不一致・並列実行の競合・権限昇格のエラーは、いずれも「Terraformでリソースを生成してからAnsibleが構成管理を始めるまで」という、初回構築時に直面する問題です。
 
-第2部（運用・ライフサイクル編）では、視点が「構築時」から「構築後の継続運用」に移ります。手動変更による構成ドリフトの検知、`terraform apply`実行時の初期化処理によるOS設定の上書き、コード修正に伴うリソースの強制再生成とそれによるAnsible投入データの消失など、第5節で整理した「Ansibleの設定がTerraform側の操作によって消える」問題は、主にこの部で具体的に扱います。
+第2部（運用・ライフサイクル編）では、視点が「構築時」から「構築後の継続運用」に移ります。手動変更による構成ドリフトの検知、`terraform apply`実行時の初期化処理によるOS設定の上書き、コード修正に伴うリソースの強制再生成とそれによるAnsible投入データの消失など、**[第5節](#5-冪等性ドリフトシリーズとの接続)** で整理した「Ansibleの設定がTerraform側の操作によって消える」問題は、主にこの部で具体的に扱います。
 
-第3部（トラブルシューティング・デバッグ編）は、第4節で触れた「デバッグの困難」という問題に正面から取り組みます。TerraformとAnsibleのログが混在する中でどう原因を切り分けるか、ネットワーク・リソース・実行環境それぞれのレイヤーで起きるエラーをどう解析するかを扱います。
+第3部（トラブルシューティング・デバッグ編）は、**[第4節](#4-アンチパターンが引き起こす問題)** で触れた「デバッグの困難」という問題に正面から取り組みます。TerraformとAnsibleのログが混在する中でどう原因を切り分けるか、ネットワーク・リソース・実行環境それぞれのレイヤーで起きるエラーをどう解析するかを扱います。
 
-第4部（改善・CI/CD自動化編）では、ここまでの個別トラブルへの対処を踏まえて、パイプライン全体の設計に視点を広げます。Moleculeシリーズで扱った継続的テストの考え方をCI/CDに統合し、ドリフトの自動検知・自動収束までを扱います。
+第4部（改善・CI/CD自動化編）では、ここまでの個別トラブルへの対処を踏まえて、パイプライン全体の設計に視点を広げます。**[Moleculeシリーズ](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)** で扱った継続的テストの考え方をCI/CDに統合し、ドリフトの自動検知・自動収束までを扱います。
 
 第5部（Terraformライフサイクル破壊編）は、TerraformのState管理とライフサイクル制御（`lifecycle`ブロックや`prevent_destroy`など）が、Ansibleが投入した設定やデータにどう影響するかを、より根本的なところから掘り下げます。
 
-この5部構成を通じて一貫しているのは、「AnsibleとTerraformという2つのツールが、それぞれ独立して動いているようで、実際には互いの実行結果に依存し合っている」という構造です。第1回で示したレイヤーの境界、第4節で示した3つの問題、第5節で示した過去シリーズとの対応関係は、いずれもこの構造の異なる断面を見ているにすぎません。
+この5部構成を通じて一貫しているのは、「AnsibleとTerraformという2つのツールが、それぞれ独立して動いているようで、実際には互いの実行結果に依存し合っている」という構造です。第1回で示したレイヤーの境界、**[第4節](#4-アンチパターンが引き起こす問題)** で示した3つの問題、**[第5節](#5-冪等性ドリフトシリーズとの接続)** で示した過去シリーズとの対応関係は、いずれもこの構造の異なる断面を見ているにすぎません。
 
 ---
 
@@ -256,7 +256,7 @@ resource "docker_container" "target" {
 - **AnsibleとTerraformの管理レイヤーは異なる**。Terraformはインフラリソースを宣言的に管理し、Ansibleはそのリソース上のOS・パッケージ・ファイル・サービスを手続き的に管理する。この境界を混在させるとトラブルになる。
 - **役割の境界を意識しない設計には3つの典型的なアンチパターンがある**。初期化スクリプトへのPlaybook直書き、local-execによる一括処理、AnsibleとTerraformの二重管理である。
 - **これらのアンチパターンは冪等性の崩壊・構成ドリフト・デバッグの困難という3つの問題を引き起こす**。「とりあえずlocal-execで繋げた」構成が、後続回で扱うトラブルの構造的な原因になっている。
-- **過去シリーズで扱った問題はAnsible×Terraform連携でも同じ構造で現れる**。冪等性シリーズのshellモジュール・state: latestの問題はlocal-exec経由の複数回実行で累積し、ドリフトシリーズの手動変更・管理外変化の問題はリソース再生成による設定消失という形で現れる。
+- **過去シリーズで扱った問題はAnsible×Terraform連携でも同じ構造で現れる**。 **[冪等性シリーズ](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)** のshellモジュール・state: latestの問題はlocal-exec経由の複数回実行で累積し、**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** の手動変更・管理外変化の問題はリソース再生成による設定消失という形で現れる。
 - **本シリーズは全50回・5部構成で、初回構築時のトラブルから継続運用・デバッグ・CI/CD統合・ライフサイクル制御まで段階的に扱っていく**。
 
 役割の境界を意識するというこの回の内容は、抽象的な設計論にとどまるものではありません。次回以降で扱う個別のトラブルは、すべてこの境界がどこかで崩れたときに発生します。
@@ -273,7 +273,7 @@ resource "docker_container" "target" {
 
 次回は、この役割分担を踏まえたうえで、連携の実装段階で最初に直面する問題を扱います。
 
-第2回では、Terraformがリソースの生成完了を報告した直後にAnsibleを実行すると、SSH接続に失敗するという問題を取り上げます。TerraformのAPIレスポンスが返ってくるタイミングと、ターゲット側でSSHDが実際に接続を受け付けられる状態になるタイミングには、構造的なズレがあります。本シリーズの検証環境であるDockerコンテナでのSSHD起動待ちを実機で再現しながら、この問題がVM環境（EC2・VirtualBox）でのOSブート待ちとも同じ構造で発生することを整理します。
+第2回では、Terraformがリソースの生成完了を報告した直後にAnsibleを実行すると、SSH接続に失敗するという問題を取り上げます。TerraformのAPIレスポンスが返ってくるタイミングと、ターゲット側でSSHDが実際に接続を受け付けられる状態になるタイミングには、構造的なズレがあります。本シリーズの検証環境であるDockerコンテナでのSSHD起動待ちを実機で再現しながら、この問題がVM環境（EC2・GCP Compute Engine）でのOSブート待ちとも同じ構造で発生することを整理します。
 
 **[次回：第2回：Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**
 
@@ -303,7 +303,7 @@ resource "docker_container" "target" {
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
