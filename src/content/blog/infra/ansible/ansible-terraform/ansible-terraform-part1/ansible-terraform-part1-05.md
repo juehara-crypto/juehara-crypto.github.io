@@ -54,7 +54,7 @@ Terraformでコンテナやサーバーを作成すると、そのIPアドレス
 
 この状態でAnsibleを実行すると、接続エラーが発生したり、意図しないホストに接続しようとしたりします。これは接続情報が古くなったという話にとどまらず、TerraformがリソースのIPアドレスを管理する仕組みと、Ansibleがその情報をどのタイミングで参照するかという、両ツールの連携の仕方に起因する問題です。
 
-ドリフトシリーズでは、インフラの実態と管理情報がずれていく問題を扱いました。今回扱うIPアドレスの変動も、その一種と捉えることができます。ただし今回は、TerraformとAnsibleが連携する場面に特有の問題として、リソース再生成に伴うIPアドレス変動を取り上げます。検証はDocker環境で行いますが、AWS EC2の再作成やDHCP環境でも同じ構造で発生する問題です。
+**[ドリフトシリーズ](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)** では、インフラの実態と管理情報がずれていく問題を扱いました。今回扱うIPアドレスの変動も、その一種と捉えることができます。ただし今回は、TerraformとAnsibleが連携する場面に特有の問題として、リソース再生成に伴うIPアドレス変動を取り上げます。検証はDocker環境で行いますが、AWS EC2の再作成やDHCP環境でも同じ構造で発生する問題です。
 
 ---
 
@@ -195,7 +195,7 @@ target-node3 ansible_host=172.18.0.4 ansible_user=ansible
 
 ## 4. 意図しないホストへの接続の再現
 
-セクション3で確認した通り、`terraform apply`単体では不整合は起きません。ここでは、applyの実行とAnsibleの実行のタイミングが分離した場合を想定し、古いインベントリファイルを使って接続するとどうなるかを実機で確認します。
+**[セクション3](#3-tfstateとインベントリの整合性)** で確認した通り、`terraform apply`単体では不整合は起きません。ここでは、applyの実行とAnsibleの実行のタイミングが分離した場合を想定し、古いインベントリファイルを使って接続するとどうなるかを実機で確認します。
 
 ### ■ 検証内容
 
@@ -639,7 +639,7 @@ target-node2 | CHANGED | rc=0 >>
 
 返ってきたコンテナIDは、今回の`apply`で実際に作成されたコンテナのID（target-node1=`5a8cd47e9fd5`、target-node2=`82f9f9b7dee5`、target-node3=`08f3c93d5f59`）とすべて一致しました。IPアドレスが再生成のたびに変わる環境であっても、動的インベントリは実行のたびに最新のTerraformの状態を問い合わせるため、ファイルの更新を待つ必要がなく、取り違えも起こりません。
 
-セクション4で確認した「古いインベントリファイルを使うと意図しないホストに接続する」問題は、接続情報が特定の時点のスナップショットとしてファイルに固定されていることが原因でした。動的インベントリは、接続情報をファイルとして保存せず、都度取得する構成にすることで、この問題を構造的に回避します。
+**[セクション4](#4-意図しないホストへの接続の再現)** で確認した「古いインベントリファイルを使うと意図しないホストに接続する」問題は、接続情報が特定の時点のスナップショットとしてファイルに固定されていることが原因でした。動的インベントリは、接続情報をファイルとして保存せず、都度取得する構成にすることで、この問題を構造的に回避します。
 
 2つの解決パターンの使い分けは、以下のように整理できます。
 
@@ -701,7 +701,7 @@ IPアドレスの安定化が図れた後、次に直面するのはネットワ
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
