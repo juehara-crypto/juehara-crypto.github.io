@@ -217,7 +217,7 @@ forks = 10
 
 こちらもトレードオフがあります。forks数を増やすということは、Ansibleのコントロールノード側で同時に開くSSH接続やプロセスの数が増えるということです。コントロールノード側のCPU・メモリ・ファイルディスクリプタなどのリソース消費が、forks数に応じて増加します。ホスト数やコントロールノードのスペックによっては、forksを大きくしすぎるとコントロールノード側がボトルネックになる可能性があります。この、コントロールノード側のリソース枯渇そのものを扱う内容は、今回の範囲には含めません。
 
-ここまでで、Terraform側の並列度を下げる方法（セクション5）と、Ansible側の並列度を上げる方法（セクション6）という、2つの逆方向のアプローチを確認しました。次のセクションでは、どちらの方向で調整すべきかを含めて、両者の並列度を合わせる設計の考え方を整理します。
+ここまでで、Terraform側の並列度を下げる方法（**[セクション5](#5-解決パターン-parallelismオプションによるterraform側の並列度制御)**）と、Ansible側の並列度を上げる方法（**[セクション6](#6-解決パターンansiblecfgによるforks数の調整)**）という、2つの逆方向のアプローチを確認しました。次のセクションでは、どちらの方向で調整すべきかを含めて、両者の並列度を合わせる設計の考え方を整理します。
 
 ---
 
@@ -240,7 +240,7 @@ forks = 10
 - 同時に構築するリソースの数が多く、Terraform側の処理時間をできるだけ短縮したい場合は、Ansible側のforksを引き上げる方向が向いています。ただしこの場合、コントロールノードのスペックが十分かどうかを事前に確認しておく必要があります
 - コントロールノードのスペックに余裕がなく、forksをむやみに増やせない場合は、Terraform側の`-parallelism`を下げて歩調を合わせる方向が現実的です。この場合、リソース生成全体の時間が延びることを許容する必要があります
 
-重要なのは、どちらの方向を選ぶにしても、「TerraformのparallelismとAnsibleのforksは、それぞれ独立した設定であり、意識して揃えない限り一致しない」という前提を踏まえたうえで、意図的に値を選ぶことです。デフォルト値のまま運用し、両者の並列度がズレていることに気づかないまま、同時構築するリソース数だけが増えていくと、セクション4で整理した遅延が徐々に顕在化していきます。
+重要なのは、どちらの方向を選ぶにしても、「TerraformのparallelismとAnsibleのforksは、それぞれ独立した設定であり、意識して揃えない限り一致しない」という前提を踏まえたうえで、意図的に値を選ぶことです。デフォルト値のまま運用し、両者の並列度がズレていることに気づかないまま、同時構築するリソース数だけが増えていくと、**[セクション4](#4-両者の並列度のズレによる遅延競合の構造)** で整理した遅延が徐々に顕在化していきます。
 
 次のセクションでは、この回で整理した内容をまとめます。
 
@@ -296,7 +296,7 @@ forks = 10
 |回数|テーマ・記事タイトル|概要|
 |---|---|---|
 |**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**|AnsibleとTerraformの連携目的と設計思想の違い|リソース生成（Terraform）と構成管理（Ansible）の役割分担と、連携時における設計のアンチパターンを俯瞰。冪等性シリーズ・ドリフトシリーズとの接続を示す。|
-|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・VirtualBox）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
+|**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-02/)**|Terraform完了直後のプロビジョニング失敗を防ぐSSH待機制御|TerraformのAPIレスポンスとSSHDが接続を受け付けられる状態になるまでのタイムラグによる接続失敗と解決策。VM環境（EC2・GCP Compute Engine）でのOSブート待ち・Docker環境でのSSHD初期化待ちなど、環境を問わず発生する構造として示す。|
 |**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**|動的インベントリ生成時における出力データのパースエラー|TerraformのJSON出力とAnsibleが期待する動的インベントリのJSONスキーマの構造的な差異を整理し、生の出力をそのまま渡した際の「静かな失敗」を実機再現したうえで、変換スクリプトによる解決方法を解説する。|
 |**[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-04/)**|自動生成されたSSH鍵のパーミッション設定エラー|Terraformで自動生成した秘密鍵ファイルの権限設定が不適切なため、AnsibleのSSH実行時に接続を拒否されるトラブルへの対応。|
 |**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**|仮想環境におけるIPアドレス変動対策|Terraformのリソース再生成で発生するIPアドレス変動を実機検証する。applyとAnsible実行のタイミングが分離すると、SSH接続自体は成功するのに意図しないホストへ接続する危険があることを示し、IP固定と動的インベントリという2つの解決アプローチを比較する。|
