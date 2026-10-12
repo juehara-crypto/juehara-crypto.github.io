@@ -17,7 +17,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第3部まとめブログ：Ansible×Terraform連携におけるトラブルシューティングとデバッグの体系](https://qiita.com/juehara-crypto/items/880dbb044c39d2d448cc)**
 
 ---
 
@@ -268,7 +268,7 @@ forks の値をansible.cfgまたは実行時オプションで引き下げる
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第3部まとめブログ：Ansible×Terraform連携におけるトラブルシューティングとデバッグの体系](https://qiita.com/juehara-crypto/items/880dbb044c39d2d448cc)**
 
 ---
 
