@@ -1522,15 +1522,14 @@ Ansible×Terraformシリーズ第3部の知識を、このパイプラインに�
 
 |回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-05/)**|GitHub ActionsからAnsibleを実行する基本構成|プルリクエストで確認し、マージで適用する基本の流れを組む。変更されたパスによるジョブの切り替え、Terraform→Ansibleの実行順序の保証、実行時のインベントリの生成を扱い、リポジトリを`terraform/`と`ansible/`に再配置する。|
-|**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-06/)**|tfstateの管理とパイプラインの同時実行|tfstateをチェックアウトの掃除から外し、pgバックエンドに移す。stateロックと`concurrency`による直列化を組み合わせ、パイプラインの同時実行と手元からの実行に備える。|
-|**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-07/)**|planのレビューと承認ゲート|レビューしたplanと実際に適用される内容がずれる理由を整理し、保存したplanを、承認したときだけ適用する承認ゲートを組む。適用の入口で、mainからの起動とプルリクエストを通ったコミットかを確かめる。|
-|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-08/)**|GitOpsの品質ガードレールとしてMoleculeとansible-lintを組み込む|ansible-lintとMoleculeの確認結果を、承認ゲートの入口の条件にする。ジョブを動かすだけでは止まらない理由と、チェックの結果を適用の前に確かめる仕組みを整理する。|
-|**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-09/)**|Terraform側にもガードレールを置く|Terraformの静的なチェックと、planに含まれる削除と作り直しの判定を、承認ゲートの入口に加える。Terraformの変更でAnsibleの設定が消えることを、適用の前に扱う。|
-|**[第10回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-10/)**|複数環境（dev/stg/prod）へのデプロイを分岐させる|環境ごとにtfstateと鍵を分け、同じコミットをdev→stg→prodの順に昇格させる。環境ごとに最後に適用したコミットを記録し、前の環境に適用していないコミットを止める。|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-11/)**|git revertしてもOSは戻らない：ロールバックの非対称性|`git revert`で戻るものと戻らないものが分かれる理由を整理する。パイプラインがすべて成功しても、OSの中に取り消したはずの設定が残ることを確認し、戻すための手順を扱う。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-12/)**|失敗したパイプラインをどう診断するか|パイプラインの失敗をGitHub Actions・ガードレール・Terraform・Ansibleの4層に分け、設計どおりの停止と故障を、止まったステップとメッセージで切り分ける。self-hostedランナーの停止で待ち続けるジョブ、デバッグ出力がジョブのログに残すもの、確認モードを通って本実行で失敗するタスクを確かめる。第2部の最終回。|
-
+|**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-05/)**|GitHub ActionsからAnsibleを実行する基本構成|プルリクエストで確認、マージで適用という基本フローを実装する。変更されたパスによるジョブの切り替え、Terraform→Ansibleの実行順序の保証、実行時のインベントリの生成を扱い、AWS・GCPプロバイダーへの書き換え点を示す。第2部の初回。|
+|**[第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-06/)**|tfstateの管理とパイプラインの同時実行|self-hostedランナー上でtfstateが消える問題と置き場所の設計、連続マージや手動実行との同時実行を扱う。Terraformのstateロックとパイプラインの直列化による二重の保護を設計し、Ansibleにはロックがないという非対称性を示す。|
+|**[第7回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-07/)**|planのレビューと承認ゲート|レビューしたplanと実際に適用される内容のずれ、保存したplanの適用、`--check --diff`で承認者に見えない変更を扱う。無料プランの非公開リポジトリでも動く、手動起動による承認ゲートを設計する。「プッシュのたびにインフラが変わる恐怖」への回答となる回。|
+|**[第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-08/)**|GitOpsの品質ガードレールとしてMoleculeとansible-lintを組み込む|Moleculeシリーズ第4回の「確認し続ける仕組み」の次の段階として、確認結果を「インフラに届くための条件」にする。適用前にチェック結果を確認する構成と、`changed_when: false`によるすり抜けという限界を示す。|
+|**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-09/)**|Terraform側にもガードレールを置く|コードに対する静的チェックと、planに対するポリシーチェックの2層を整理する。planから再生成・削除を検知し、Ansibleの設定消失を適用前に扱う3ツール統合ならではのガードレールを作る。|
+|**[第10回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-10/)**|複数環境（dev/stg/prod）へのデプロイを分岐させる|環境をブランチではなく、mainの1本と環境別ディレクトリで分ける。tfstate・インベントリ・承認を環境ごとに分け、昇格の順序と条件をワークフローで強制する。「最後に適用したコミット」の記録を導入する。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-11/)**|git revertしてもOSは戻らない：ロールバックの非対称性|TerraformでもAnsibleでも、revertで戻るのは「revertの後のコードに元の状態が書かれているもの」だけであることを実機で示す。戻らないものを戻す2つの設計と、複数環境で消す変更が飛ばされる問題を整理する。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-12/)**|失敗したパイプラインをどう診断するか|パイプラインの失敗をGitHub Actions・ガードレール・Terraform・Ansibleの4層に分け、「設計どおりの停止か、故障か」を、止まったステップとメッセージで切り分ける。self-hostedランナーの停止で待ち続けるジョブ、デバッグ出力がジョブのログに残すもの、確認モードを通って本実行で失敗するタスクを実機で示し、Ansible×Terraformシリーズ第3部の知識の持ち込み方を整理する。第2部の最終回。|
 ---
 
 [↑ 目次に戻る](#-目次)
