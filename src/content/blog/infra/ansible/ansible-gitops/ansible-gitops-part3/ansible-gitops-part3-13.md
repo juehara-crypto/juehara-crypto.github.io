@@ -1,4 +1,3 @@
-```
 ---
 title: '「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第13回：なぜGitリポジトリに機密情報を置いてはいけないのか'
 description: '「あるべき状態をすべてGitに置く」GitOpsの考え方と、Gitに平文で置けない機密情報がどこでぶつかるのかを整理する。リポジトリを非公開にしても十分ではない理由をGitの履歴で確かめ、第2部で暫定のまま残した機密情報を、パイプラインがツールを動かすための鍵と、操作対象に入れる秘密の値に分けて棚卸しする。そのうえで、tfstate、保存したplan、イメージの履歴、ジョブのログという、Git以外に機密情報が残る経路を示す。第3部の初回。'
@@ -11,7 +10,6 @@ prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/an
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part3/ansible-gitops-part3-14/'
 relatedSeries: ''
 ---
-```
 
 <style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
 
