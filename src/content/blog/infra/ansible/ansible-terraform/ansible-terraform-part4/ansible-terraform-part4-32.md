@@ -17,7 +17,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 
@@ -401,7 +401,7 @@ CI上で起動したコンテナは、ジョブ終了時にランナー自体が
 
 ## 9. 次回予告
 
-**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** では、第4部の起点として、Terraformの`local-exec`経由でAnsibleを直接実行する密結合構成を見直し、Terraformの責務を状態の出力に限定する疎結合設計への移行を扱いました。第32回 となる今回は、この疎結合化によって生じた「実行順序をどう保証するか」という課題に対し、GitHub Actionsを用いたCI環境の構築によって、コードのプッシュをトリガーとしたコンテナ起動からAnsible適用までのE2Eテストを扱いました。GitHub-hostedランナーに標準搭載されたDocker Engineを使うことで、CI上でも実際にコンテナを起動した検証が可能であることを、実機検証を交えて確認しました。
+**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** では、**[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** の起点として、Terraformの`local-exec`経由でAnsibleを直接実行する密結合構成を見直し、Terraformの責務を状態の出力に限定する疎結合設計への移行を扱いました。第32回 となる今回は、この疎結合化によって生じた「実行順序をどう保証するか」という課題に対し、GitHub Actionsを用いたCI環境の構築によって、コードのプッシュをトリガーとしたコンテナ起動からAnsible適用までのE2Eテストを扱いました。GitHub-hostedランナーに標準搭載されたDocker Engineを使うことで、CI上でも実際にコンテナを起動した検証が可能であることを、実機検証を交えて確認しました。
 
 次回は、`null_resource`や`terraform_data`の`triggers`／`triggers_replace`を使い、設定ファイルに変更があった場合のみAnsibleを発火させる、不要な再実行を抑制する設計を扱います。
 
@@ -417,7 +417,7 @@ CI上で起動したコンテナは、ジョブ終了時にランナー自体が
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 

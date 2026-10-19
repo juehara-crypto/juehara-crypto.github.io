@@ -950,7 +950,7 @@ Terraformコアとプロバイダー間のRPC呼び出しが、タイムスタ�
 
 **[第29回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-29/)** では、対象OSに関わらず発生する、Ansible自体の依存関係取得というレイヤーの問題を扱いました。**[第30回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-30/)** となる今回は、第3部の最終回として、`TF_LOG`と`-vvvv`という2つのデバッグフラグが実際に何を記録し、何を記録しないかを、実機検証を交えて確認しました。両者が段階的に情報を増やすだけの単純な仕組みではなく、あるレベルを境に記録される情報の階層そのものが変わること、そして`local-exec`の実行過程が`TF_LOG`の記録範囲の外にあることを確認しました。
 
-これで第3部（トラブルシューティング、デバッグ編）は完結です。次回からは第4部（改善、CI/CD自動化編）に入ります。第3部で身につけた「起きた問題をどう特定するか」という視点から、「問題が起きる前にどう防ぐか、どう自動化するか」という視点へと移ります。第4部の初回では、Terraformの`output`を中間データとして抽出し、Ansibleの動的インベントリや変数として渡す、疎結合なパイプライン設計を扱います。
+これで第3部（トラブルシューティング、デバッグ編）は完結です。次回からは **[第4部（改善、CI/CD自動化編）](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** に入ります。第3部で身につけた「起きた問題をどう特定するか」という視点から、「問題が起きる前にどう防ぐか、どう自動化するか」という視点へと移ります。**[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** の初回では、Terraformの`output`を中間データとして抽出し、Ansibleの動的インベントリや変数として渡す、疎結合なパイプライン設計を扱います。
 
 **[次回：第31回：状態出力を介した疎結合なパイプライン設計](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)**
 

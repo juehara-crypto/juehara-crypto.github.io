@@ -17,8 +17,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
-
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 ---
 
 ## 📋 目次
@@ -733,7 +732,7 @@ TerraformのModule側についても、同様の構造が成り立ちます。�
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 

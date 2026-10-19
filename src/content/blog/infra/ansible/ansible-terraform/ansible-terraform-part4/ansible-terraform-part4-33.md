@@ -17,7 +17,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 
@@ -44,7 +44,7 @@ relatedSeries: ''
 
 第33回となる今回は、視点を変えます。実行するかどうかという判断そのものを扱う回です。
 
-第1部から第4部を通じて、検証環境では`terraform apply`実行のたびにAnsible Playbookを適用する構成を取ってきました。この方式では、Playbookの内容に変更がない場合でも、`terraform apply`を実行するたびに同じAnsible実行が繰り返されます。`null_resource`（および`terraform_data`）が持つ`triggers`（`triggers_replace`）引数を使うと、指定した値の変化を検知してリソースの再作成を制御できます。この性質を利用し、Playbookファイルの内容に変更がない限りAnsible実行そのものをスキップする設計を、この回で扱います。
+第1部から **[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** を通じて、検証環境では`terraform apply`実行のたびにAnsible Playbookを適用する構成を取ってきました。この方式では、Playbookの内容に変更がない場合でも、`terraform apply`を実行するたびに同じAnsible実行が繰り返されます。`null_resource`（および`terraform_data`）が持つ`triggers`（`triggers_replace`）引数を使うと、指定した値の変化を検知してリソースの再作成を制御できます。この性質を利用し、Playbookファイルの内容に変更がない限りAnsible実行そのものをスキップする設計を、この回で扱います。
 
 問いは、「Terraformが元々持っている状態管理の仕組みを使って、Ansible実行の要否そのものを制御できないか」です。
 
@@ -752,7 +752,7 @@ Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 

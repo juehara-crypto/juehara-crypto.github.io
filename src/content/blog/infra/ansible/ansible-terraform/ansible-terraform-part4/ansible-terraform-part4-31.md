@@ -17,7 +17,7 @@ relatedSeries: ''
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 
@@ -40,7 +40,7 @@ relatedSeries: ''
 
 第3部（第21〜30回）は、この`local-exec`経由でAnsibleを実行する構成を前提として、その中で起きる個々のトラブルの原因特定と対処法を扱ってきました。**[第21回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-21/)** ではAnsible側のエラー情報がTerraformのログの中に埋没する構造を、**[第26回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-26/)** ではsudoパスワードのプロンプト入力待ちによる無応答停止を、**[第27回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-27/)** では再起動に伴う接続断絶の扱いを、**[第29回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-29/)** では外部コレクションの取得失敗を、それぞれ整理しました。**[第30回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-30/)** では、これらの原因特定に使うデバッグフラグの組み合わせを体系化しました。
 
-第4部（第31〜40回）は、この前提そのものを見直します。第3部で扱ってきた個々のトラブルは、性質も現れ方もそれぞれ異なっていました。しかし、その多くは「Terraformのプロセスの中でAnsibleを直接実行する」という同じ構成の上で起きています。**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** となる今回は、その起点として、Terraformの責務を状態（tfstate・output）の出力に限定し、Ansible側がその出力を独立したタイミングで読み込んで動作する、疎結合な設計への移行を扱います。
+**[第4部（第31〜40回）](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** は、この前提そのものを見直します。第3部で扱ってきた個々のトラブルは、性質も現れ方もそれぞれ異なっていました。しかし、その多くは「Terraformのプロセスの中でAnsibleを直接実行する」という同じ構成の上で起きています。**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** となる今回は、その起点として、Terraformの責務を状態（tfstate・output）の出力に限定し、Ansible側がその出力を独立したタイミングで読み込んで動作する、疎結合な設計への移行を扱います。
 
 この回で扱う問いは、「密結合を解消すると、第3部で個別に対処してきた問題群はそれぞれどうなるのか」です。すべてが解消されるのか、それとも別の形の課題に置き換わるだけなのか、この後のセクションで順に整理していきます。
 
@@ -301,7 +301,7 @@ ansible-playbook -i dynamic_inventory.py site.yml 実行
 
 ## 7. 次回予告
 
-**[第30回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-30/)** では、第3部の最終回として、`TF_LOG`と`-vvvv`という2つのデバッグフラグの体系化を扱いました。**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** となる今回は、第4部の起点として、Terraformの`local-exec`経由でAnsibleを直接実行する密結合構成を見直し、Terraformの責務を状態の出力に限定する疎結合設計への移行を扱いました。`terraform output -json`と動的インベントリスクリプトを組み合わせることで、Terraformのプロセスから完全に独立してAnsibleを実行できることを、実機検証を交えて確認しました。
+**[第30回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part3/ansible-terraform-part3-30/)** では、第3部の最終回として、`TF_LOG`と`-vvvv`という2つのデバッグフラグの体系化を扱いました。**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** となる今回は、**[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** の起点として、Terraformの`local-exec`経由でAnsibleを直接実行する密結合構成を見直し、Terraformの責務を状態の出力に限定する疎結合設計への移行を扱いました。`terraform output -json`と動的インベントリスクリプトを組み合わせることで、Terraformのプロセスから完全に独立してAnsibleを実行できることを、実機検証を交えて確認しました。
 
 次回は、この疎結合化によって生じた「実行順序をどう保証するか」という課題に対し、GitHub Actionsを用いたCI環境の構築によって、コードのプッシュをトリガーとしたTerraformとansible-lintの静的検証を自動実行する仕組みを扱います。
 
@@ -317,7 +317,7 @@ ansible-playbook -i dynamic_inventory.py site.yml 実行
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」シリーズ統合ブログ** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第4部まとめブログ：Ansible×Terraform連携における改善・CI/CD自動化の体系](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)**
 
 ---
 
