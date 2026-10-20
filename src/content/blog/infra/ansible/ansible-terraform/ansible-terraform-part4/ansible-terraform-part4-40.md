@@ -40,7 +40,7 @@ relatedSeries: ''
 
 第31回から第39回で扱ってきた9個の改善を振り返ったとき、これらは互いに独立した9個のテクニックだったのでしょうか。
 
-**[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)** では、伝統的な運用知識とIaC特有の知識という2つの知識軸から、第1回から第38回までを振り返りました。第40回となる今回は、第4部（**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** 〜 **[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)**）で扱ってきた個々の改善を、成熟度という一本の軸に沿って並べ直します。
+**[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)** では、伝統的な運用知識とIaC特有の知識という2つの知識軸から、第1回から第38回までを振り返りました。第40回となる今回は、**[第4部（第31回〜第39回）](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** で扱ってきた個々の改善を、成熟度という一本の軸に沿って並べ直します。
 
 **[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)**（状態出力による疎結合設計）は手動実行からの最初の脱却であり、**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** ・**[第34回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-34/)**（CI上でのE2E実行・検証）はその先の自動化であり、**[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)**（定期的な差分検知と自動収束）はさらにその先にあります。これらは、「人手に依存する範囲をどこまで減らせるか」という一本の軸の上に並べることができます。
 
@@ -214,9 +214,9 @@ Level 1からLevel 2への移行は、既存の`local-exec`経由の実行を、
 
 ## 8. 次回予告
 
-**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** から **[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)** では、パイプラインの実行順序、検証、コード構造、待ち時間、変化の検知、ドキュメント化という、個々の改善を積み重ねてきました。第40回となる今回は、これらの改善を、手動実行から自動収束に至る一連の成熟度として整理し直しました。各回がLevel 1〜4のどこに対応するかを確認したうえで、レベルが上がっても、TerraformとAnsibleがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは解消されないこと、そして成熟度を上げることが導入コストとのトレードオフであることを整理し、第4部（改善、CI/CD自動化編）を締めくくりました。
+**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** から **[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)** では、パイプラインの実行順序、検証、コード構造、待ち時間、変化の検知、ドキュメント化という、個々の改善を積み重ねてきました。第40回となる今回は、これらの改善を、手動実行から自動収束に至る一連の成熟度として整理し直しました。各回がLevel 1〜4のどこに対応するかを確認したうえで、レベルが上がっても、TerraformとAnsibleがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは解消されないこと、そして成熟度を上げることが導入コストとのトレードオフであることを整理し、**[第4部（改善、CI/CD自動化編）](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** を締めくくりました。
 
-第5部（Terraformライフサイクル破壊編）からは、視点がさらに変わります。ここまでの第4部が「どう自動化し、どう改善するか」を扱ってきたのに対し、第5部は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。次回は、TerraformのState管理メカニズムと、Ansibleが変更するコンテナ内部状態の間にある「認識の不可視性」を扱います。
+第5部（Terraformライフサイクル破壊編）からは、視点がさらに変わります。ここまでの **[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** が「どう自動化し、どう改善するか」を扱ってきたのに対し、第5部は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。次回は、TerraformのState管理メカニズムと、Ansibleが変更するコンテナ内部状態の間にある「認識の不可視性」を扱います。
 
 **[次回：第41回：なぜTerraformはAnsibleが投じた設定を知らないのか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)**
 
