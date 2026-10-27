@@ -216,7 +216,7 @@ Level 1からLevel 2への移行は、既存の`local-exec`経由の実行を、
 
 **[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** から **[第39回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-39/)** では、パイプラインの実行順序、検証、コード構造、待ち時間、変化の検知、ドキュメント化という、個々の改善を積み重ねてきました。第40回となる今回は、これらの改善を、手動実行から自動収束に至る一連の成熟度として整理し直しました。各回がLevel 1〜4のどこに対応するかを確認したうえで、レベルが上がっても、TerraformとAnsibleがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは解消されないこと、そして成熟度を上げることが導入コストとのトレードオフであることを整理し、**[第4部（改善、CI/CD自動化編）](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** を締めくくりました。
 
-第5部（Terraformライフサイクル破壊編）からは、視点がさらに変わります。ここまでの **[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** が「どう自動化し、どう改善するか」を扱ってきたのに対し、第5部は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。次回は、TerraformのState管理メカニズムと、Ansibleが変更するコンテナ内部状態の間にある「認識の不可視性」を扱います。
+**[第5部](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)** （Terraformライフサイクル破壊編）からは、視点がさらに変わります。ここまでの **[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** が「どう自動化し、どう改善するか」を扱ってきたのに対し、**[第5部](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)** は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。次回は、TerraformのState管理メカニズムと、Ansibleが変更するコンテナ内部状態の間にある「認識の不可視性」を扱います。
 
 **[次回：第41回：なぜTerraformはAnsibleが投じた設定を知らないのか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)**
 

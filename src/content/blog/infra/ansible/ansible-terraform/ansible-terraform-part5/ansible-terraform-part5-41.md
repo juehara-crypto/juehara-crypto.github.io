@@ -17,7 +17,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)**
 
 ---
 
@@ -37,9 +37,9 @@ relatedSeries: ''
 
 「Ansibleでコンテナ内部の設定を変更しても、Terraformがそれに気づかないのは、何らかの見落としがあるからだ」と考えていないでしょうか。
 
-**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** では、第31回から第39回で扱ってきた個々の改善を、手動実行から自動収束に至るLevel 1〜4の成熟度として整理しました。そのうえで、Level 4に到達しても、TerraformとAnsibleがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは解消されないことを確認し、第4部（改善、CI/CD自動化編）を締めくくりました。
+**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** では、第31回から第39回で扱ってきた個々の改善を、手動実行から自動収束に至るLevel 1〜4の成熟度として整理しました。そのうえで、Level 4に到達しても、TerraformとAnsibleがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは解消されないことを確認し、**[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** （改善、CI/CD自動化編）を締めくくりました。
 
-第5部（Terraformライフサイクル破壊編）は、このギャップそのものを主題に据えます。ここまでの第4部が「どう自動化し、どう改善するか」を扱ってきたのに対し、第5部は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。第41回となる今回は、その起点として、このギャップの正体をTerraformのState管理の仕組みから整理します。
+第5部（Terraformライフサイクル破壊編）は、このギャップそのものを主題に据えます。ここまでの **[第4部](https://qiita.com/juehara-crypto/items/c4b65bf884caf9a82c36)** が「どう自動化し、どう改善するか」を扱ってきたのに対し、第5部は、TerraformのState管理そのものが持つ構造的な限界に踏み込みます。第41回となる今回は、その起点として、このギャップの正体をTerraformのState管理の仕組みから整理します。
 
 正確に言うと、**Terraformは何かを見落としているのではなく、そもそもコンテナ内部のOSレイヤーを観測対象に含めていません**。この回で扱う問いは、「tfstateは何を記録し、何を記録しないのか、そしてその境界線はどこで決まるのか」です。
 
@@ -393,7 +393,7 @@ Terraformがリソースを強制的に破棄、再生成する
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)**
 
 ---
 

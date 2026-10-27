@@ -18,7 +18,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)**
 
 ---
 
@@ -428,7 +428,7 @@ Apply complete! Resources: 7 added, 0 changed, 7 destroyed.
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造** **※近日公開予定**
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)**
 
 ---
 
