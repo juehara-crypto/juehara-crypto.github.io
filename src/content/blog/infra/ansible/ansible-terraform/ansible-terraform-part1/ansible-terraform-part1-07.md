@@ -545,7 +545,7 @@ Pythonバージョンの問題が解消された後、次に直面するのは�
 
 ---
 
-📑 連載の移動　**[前の記事：【Ansible×Terraform編】第6回](http://localhost:4321/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)　｜　[次の記事：【Ansible×Terraform編】第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)**
+📑 連載の移動　**[前の記事：【Ansible×Terraform編】第6回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-06/)　｜　[次の記事：【Ansible×Terraform編】第8回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-08/)**
 
 ---
 
