@@ -1635,7 +1635,7 @@ RESULT docker=none exit_code=0 ref=c4877db9551c86d5153a2507d6cc24787656d328
 * 何を管理し、何を管理外と宣言するかは、「その状態を誰が決めているか」で決まる。決めているものが別にあれば、それを理由に書いて宣言する。なければ、残したいものは取り込み、残す理由を書けないものは削除する
 * この設計は、クラウドのプロバイダーでも変わらない。置き換えるのは、プロバイダーのリソースの実際の一覧を取る部分だけで、tfstateとの突き合わせ、宣言のリスト、`import`ブロックによる取り込み、定期的な実行の形は、そのまま使える
 
-この回で、**[ドリフトシリーズ第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-04/)** の「防ぐ」をパイプラインの上で実装し、第4部（ドリフト検知と自動収束）と「Ansible×TerraformをGitOpsで回す」を締めくくります。第4部の5回（**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part4/ansible-gitops-part4-17/)** 〜第21回）で作った、ドリフトの区別・検知・収束・例外・予防は、シリーズ統合ブログで、「最後に適用したコミット」という1本の軸でつなげて整理します。
+この回で、**[ドリフトシリーズ第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-04/)** の「防ぐ」をパイプラインの上で実装し、第4部（ドリフト検知と自動収束）と「Ansible×TerraformをGitOpsで回す」を締めくくります。
 
 ---
 
