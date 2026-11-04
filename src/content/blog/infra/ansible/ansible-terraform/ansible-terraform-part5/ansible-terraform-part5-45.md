@@ -11,7 +11,6 @@ nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform
 relatedSeries: ''
 ---
 
-
 <style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
 
 > **🗺️ 初めての方、シリーズの全体像を知りたい方はこちら**
@@ -65,7 +64,7 @@ Dockerのネットワーク設定（ドライバ・IPAM設定等）は、Docker 
 
 * **ファイル名：`main.tf`（既存の`docker_network.lab_net`リソース）**
 
-【変更前】
+**【変更前】**
 
 ```hcl
 resource "docker_network" "lab_net" {
@@ -73,7 +72,7 @@ resource "docker_network" "lab_net" {
 }
 ```
 
-【変更後】
+**【変更後】**
 
 ```hcl
 resource "docker_network" "lab_net" {
@@ -150,12 +149,11 @@ Dockerのネットワーク設定の多くの属性は、既存ネットワー�
 
 ---
 
-
 ## 3. `networks_advanced`による参照構造
 
 再生成が伝播する仕組みを整理するセクションです。
 
-`docker_container`が`networks_advanced`ブロックでネットワークを参照する際、参照先には`name`または`id`のいずれかを指定できます。この参照方法の違いが、セクション2で確認したネットワークの再生成が、コンテナ側に伝播するかどうかを左右します。
+`docker_container`が`networks_advanced`ブロックでネットワークを参照する際、`name`引数にはネットワークの名前またはIDを指定できます。この参照方法の違いが、セクション2で確認したネットワークの再生成が、コンテナ側に伝播するかどうかを左右します。
 
 ### ■ 検証環境の構成
 
@@ -169,15 +167,15 @@ locals {
     "target-node3" = 2223
   }
   target_node_networks = {
-    # "target-node1" = [docker_network.lab_net.id, docker_network.app_net.name]
-    "target-node1" = [docker_network.lab_net.id]
-    "target-node2" = [docker_network.lab_net.id]
-    "target-node3" = [docker_network.lab_net.id]
+    # "target-node1" = [docker_network.lab_net.name, docker_network.app_net.name]
+    "target-node1" = [docker_network.lab_net.name]
+    "target-node2" = [docker_network.lab_net.name]
+    "target-node3" = [docker_network.lab_net.name]
   }
 }
 ```
 
-`target_node_networks`は、各ノード名をキーとして、接続先ネットワークのリストを値に持つマップです。target-node1〜3いずれも、リストの中身は`docker_network.lab_net.id`一つのみです。
+`target_node_networks`は、各ノード名をキーとして、接続先ネットワークのリストを値に持つマップです。target-node1〜3いずれも、リストの中身は`docker_network.lab_net.name`一つのみで、ネットワークの名前（`ansible-lab-net`）で参照しています。
 
 この`target_node_networks`を、`docker_container.targets`側が以下のように参照しています。
 
@@ -211,15 +209,56 @@ resource "docker_container" "targets" {
 }
 ```
 
-`dynamic "networks_advanced"`ブロックは`local.target_node_networks[each.key]`をループしており、その中の`networks_advanced.value`が、実際には`local.target_node_networks`のリストの要素、つまり`docker_network.lab_net.id`そのものです。`content`ブロック内の`name = networks_advanced.value`という記述により、`networks_advanced`の`name`引数（ネットワークの名前またはIDを受け付ける引数）に、`docker_network.lab_net`の`id`が渡される構造になっています。
+`dynamic "networks_advanced"`ブロックは`local.target_node_networks[each.key]`をループしており、その中の`networks_advanced.value`が、実際には`local.target_node_networks`のリストの要素、つまり`docker_network.lab_net.name`そのものです。`content`ブロック内の`name = networks_advanced.value`という記述により、`networks_advanced`の`name`引数に、`docker_network.lab_net`の`name`が渡される構造になっています。
 
-### ■ `id`参照によって生じる依存関係
+セクション2の`terraform plan`でコンテナ側に変更が計画されなかったのは、この構成のためです。`docker_network.lab_net`が再生成されても、`name`属性の値は`ansible-lab-net`のまま変わらず、コンテナ側の`networks_advanced`ブロックが参照する値に変化が生じません。
 
-`docker_network.lab_net`が再生成されると、Docker Engine上で新しいネットワークが作成し直されるため、新しい`id`が発行されます。`docker_container.targets`側の`networks_advanced`ブロックは、この`id`を参照しているため、参照先の値そのものが変化したとTerraformに認識されます。
+### ■ 検証内容：参照先を`id`に変更する
 
-セクション2の検証時に取得した`terraform plan`結果には、`docker_network.lab_net`の再生成に続けて、`docker_container.targets["target-node1"]`に以下の変更が計画されていました。
+`networks_advanced`が参照する値を、`name`から`id`に変更します。`id`は、ネットワークが再作成されるたびに新しい値が発行される属性です。
+
+* **ファイル名：`main.tf`（`locals`ブロックの`target_node_networks`）**
+
+**【変更前】**
+
+```hcl
+  target_node_networks = {
+    # "target-node1" = [docker_network.lab_net.name, docker_network.app_net.name]
+    "target-node1" = [docker_network.lab_net.name]
+    "target-node2" = [docker_network.lab_net.name]
+    "target-node3" = [docker_network.lab_net.name]
+  }
+```
+
+**【変更後】**
+
+```hcl
+  target_node_networks = {
+    # "target-node1" = [docker_network.lab_net.id, docker_network.app_net.name]
+    "target-node1" = [docker_network.lab_net.id]
+    "target-node2" = [docker_network.lab_net.id]
+    "target-node3" = [docker_network.lab_net.id]
+  }
+```
+
+`docker_container.targets`側の`networks_advanced`ブロックは変更しません。この状態で`terraform plan`を実行します。
+
+**実行コマンド**
 
 ```plaintext
+terraform plan
+```
+
+**▼ 実行結果**
+
+```plaintext
+（途中省略：Refreshing state...によるリソース一覧の出力）
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
   # docker_container.targets["target-node1"] must be replaced
 -/+ resource "docker_container" "targets" {
       + bridge                                      = (known after apply)
@@ -287,13 +326,51 @@ resource "docker_container" "targets" {
 
         # (3 unchanged blocks hidden)
     }
+
+（途中省略：docker_container.targets["target-node2"]、docker_container.targets["target-node3"]の差分。セクション4で掲載）
+
+  # docker_network.lab_net must be replaced
+-/+ resource "docker_network" "lab_net" {
+      - attachable   = false -> null
+      ~ driver       = "bridge" -> (known after apply)
+      ~ id           = "261d153c5dc82cf69950a9289c1726cbde2f5a14fa9b2f395c58434d13c4a354" -> (known after apply)
+      - ingress      = false -> null
+      ~ internal     = false -> (known after apply)
+      - ipam_options = {} -> null
+      - ipv6         = false -> null
+        name         = "ansible-lab-net"
+      ~ options      = {} -> (known after apply)
+      ~ scope        = "local" -> (known after apply)
+        # (1 unchanged attribute hidden)
+
+      - ipam_config { # forces replacement
+          - aux_address = {} -> null
+          - gateway     = "172.20.0.1" -> null
+          - subnet      = "172.20.0.0/24" -> null
+            # (1 unchanged attribute hidden)
+        }
+      + ipam_config { # forces replacement
+          + subnet   = "172.20.0.0/24"
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+（途中省略：local_file.ansible_inventory、local_file.group_vars_target_nodesの差分。セクション4で掲載）
+
+Plan: 6 to add, 0 to change, 6 to destroy.
+
+（途中省略：Changes to Outputs、Note行）
 ```
 
-`networks_advanced`ブロックに`# forces replacement`という注記が付き、`docker_container.targets["target-node1"]`自体が`must be replaced`となっています。参照先である`docker_network.lab_net`の`id`が変わることで、参照元であるコンテナ側の設定も変化したとみなされ、コンテナ自体の再生成が引き起こされる構造です。target-node2、target-node3についても同様の差分が計画されています。
+### ■ `id`参照によって生じる依存関係
+
+`docker_network.lab_net`が再生成されると、Docker Engine上で新しいネットワークが作成し直されるため、新しい`id`が発行されます。`docker_container.targets`側の`networks_advanced`ブロックは、この`id`を参照しているため、参照先の値そのものが変化したとTerraformに認識されます。
+
+上記の`terraform plan`結果では、`name`参照の状態（セクション2）では変更が計画されなかった`docker_container.targets["target-node1"]`が`must be replaced`となり、`networks_advanced`ブロックに`# forces replacement`という注記が付いています。参照先である`docker_network.lab_net`の`id`が変わることで、参照元であるコンテナ側の設定も変化したとみなされ、コンテナ自体の再生成が引き起こされる構造です。target-node2、target-node3についても同様の差分が計画されています。詳細はセクション4で整理します。
 
 ### ■ `name`参照であった場合との対比
 
-なお、この参照が`id`ではなく`name`であった場合は、状況が異なります。`docker_network`の`name`属性は、ネットワークが再生成されても値自体は変わりません。そのため、`networks_advanced`ブロックが`name`を参照している構成では、ネットワークが再生成されても参照元の実質的な値に変化が生じず、コンテナ側への伝播は起きません。
+セクション2の`terraform plan`（`name`参照）と、このセクションの`terraform plan`（`id`参照）の違いを整理します。`docker_network`の`name`属性は、ネットワークが再生成されても値自体は変わりません。そのため、`networks_advanced`ブロックが`name`を参照している構成では、ネットワークが再生成されても参照元の実質的な値に変化が生じず、コンテナ側への伝播は起きません。
 
 ```
 
@@ -327,13 +404,14 @@ docker_container.targets への伝播は発生しない
 
 ---
 
+
 ## 4. 連鎖の伝播範囲
 
 被害範囲が単一リソースにとどまらないことを整理するセクションです。
 
-セクション3では、target-node1について`docker_network.lab_net`の再生成が`docker_container.targets["target-node1"]`の再生成に波及する構造を確認しました。同一の`terraform plan`結果には、target-node2、target-node3についても同様の差分が含まれています。
+セクション3では、target-node1について`docker_network.lab_net`の再生成が`docker_container.targets["target-node1"]`の再生成に波及する構造を確認しました。セクション3で取得した`terraform plan`結果には、target-node2、target-node3についても同様の差分が含まれています。
 
-**▼ `terraform plan`結果（target-node2、target-node3部分）**
+**▼ セクション3の`terraform plan`結果（target-node2、target-node3部分）**
 
 ```plaintext
   # docker_container.targets["target-node2"] must be replaced
@@ -477,9 +555,9 @@ target-node1と同様、target-node2、target-node3いずれも`networks_advance
 
 ### ■ さらに先へ波及する変更
 
-この`terraform plan`結果には、コンテナ以外の変更も含まれていました。`local_file.ansible_inventory`と`local_file.group_vars_target_nodes`です。
+セクション3の`terraform plan`結果には、コンテナ以外の変更も含まれていました。`local_file.ansible_inventory`と`local_file.group_vars_target_nodes`です。
 
-**▼ `terraform plan`結果（`local_file`部分）**
+**▼ セクション3の`terraform plan`結果（`local_file`部分）**
 
 ```plaintext
   # local_file.ansible_inventory must be replaced
@@ -652,7 +730,7 @@ target-node1〜3すべてに、3件のレコードが存在する状態になり
 
 ### ■ 検証内容：`docker_network`のIPAM設定変更と`terraform plan`
 
-セクション2で適用済みの`docker_network.lab_net`への`ipam_config`追加、およびセクション3で適用済みの`networks_advanced`の`id`参照化がそのまま反映された状態で、`terraform plan`を実行します。
+セクション2で追加した`docker_network.lab_net`の`ipam_config`、およびセクション3で変更した`target_node_networks`の`id`参照が`main.tf`に反映されている状態で、`terraform plan`を実行します。
 
 **実行コマンド**
 
@@ -1056,7 +1134,7 @@ target_nodes_ips = {
 }
 ```
 
-`Apply complete! Resources: 6 added, 0 changed, 6 destroyed`という、エラーのないログで完了しました。再作成後の内部IPアドレスは、再生成前（target-node1：172.20.0.4、target-node2：172.20.0.3、target-node3：172.20.0.2）から、target-node1が172.20.0.3、target-node2が172.20.0.4へと変動しており、target-node3のみ172.20.0.2のまま変わっていません。**[第43回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-43/)**、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** で確認した「コンテナの内部IPアドレスは、再生成のたびに`local.target_nodes`のキー順と一致しない順序で割り当てられることがある」という環境の癖が、ここでも現れています。
+`Apply complete! Resources: 6 added, 0 changed, 6 destroyed`という、エラーのないログで完了しました。再作成後の内部IPアドレスは、再生成前（target-node1：172.20.0.4、target-node2：172.20.0.3、target-node3：172.20.0.2）から、target-node1が172.20.0.3、target-node2が172.20.0.4へと変動しており、target-node3のみ172.20.0.2のまま変わっていません。コンテナが再作成されると内部IPアドレスが変わる場合があり、セクション4で確認した`local_file`2つが再生成の対象に含まれていたのは、これらのIPアドレスを参照しているためです。
 
 ### ■ 検証内容：データ消失の確認
 
