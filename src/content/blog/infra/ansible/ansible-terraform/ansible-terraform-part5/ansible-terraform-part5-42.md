@@ -339,9 +339,40 @@ docker_container.targets["target-node1"]: Creating...
 
 `replace_triggered_by`はTerraform 1.2で導入された機能で、参照先リソースの変更を検知して、直接は変更されていない別のリソースまで再生成の対象にできます。
 
+### ■ 検証内容：セクション3の設定の復元
+
+セクション2、3で加えた`name`属性の条件式と`create_before_destroy`は、元の定義に戻した状態から検証を始めます。
+
+* **ファイル名：`main.tf`（該当箇所）**
+
+**【変更前】**
+
+```hcl
+  name     = each.key == "target-node1" ? "target-node1-renamed" : each.key
+```
+
+```hcl
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes         = [network_mode]
+  }
+```
+
+**【変更後】**
+
+```hcl
+  name     = each.key
+```
+
+```hcl
+  lifecycle {
+    ignore_changes = [network_mode]
+  }
+```
+
 ### ■ 検証内容：target-node1〜3全台へのAnsible設定投入
 
-この回の検証は`for_each`で一括管理されている3台すべてに影響するため、セクション2、3のPlaybookを3台対象に変更します。
+この回の検証は`for_each`で一括管理されている3台すべてに影響するため、セクション2のPlaybookを3台対象に変更します。
 
 * **ファイル名：`playbooks/lifecycle_marker.yml`（該当箇所）**
 
@@ -593,14 +624,14 @@ cat: /etc/lifecycle_test_marker.txt: No such file or directory
 
 ## 5. 再生成時にAnsibleの設定が消える理由
 
-セクション2〜4で確認した再生成が、なぜAnsibleの設定消失につながるのかを整理します。
+セクション2、4、6で確認した再生成が、なぜAnsibleの設定消失につながるのかを整理します。
 
 **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で整理した通り、tfstateが記録するのはTerraformが管理するリソース属性のみであり、コンテナ内部にAnsibleが投じたファイルやパッケージの状態は、そもそも記録する場所自体がありません。この前提に立つと、リソースが再生成された際、新しいリソースにAnsibleの設定を復元する仕組みは、Terraform側に存在しないことになります。
 
-セクション2〜4で確認した3つの再生成は、いずれも起点となる属性やトリガーが異なりますが、消失に至る経路は共通しています。
+セクション2、6の`name`属性の変更と、セクション4の`replace_triggered_by`は、起点となる属性やトリガーが異なりますが、消失に至る経路は共通しています。
 
 ```
-【セクション2、3：name属性の変更】
+【セクション2、6：name属性の変更】
 name属性の変更 → docker_containerの更新不可属性に該当 → 破棄、再作成
 　→ 新しいコンテナはAnsible未設定の状態で作られる
 
@@ -609,9 +640,9 @@ tls_private_key.generatedの再生成 → replace_triggered_byによりtarget-no
 　→ 新しいコンテナはAnsible未設定の状態で作られる
 ```
 
-いずれの経路でも、Terraformが実際に行っている処理は同じです。古いコンテナを破棄し、`main.tf`のリソース定義（`image`、`ports`、`upload`ブロック等）に基づいて新しいコンテナを作成します。この`upload`ブロックには、セクション4で確認した通りSSH公開鍵と`/etc/init_marker`が含まれていますが、Ansibleが実行時に投じた`/etc/lifecycle_test_marker.txt`のような設定は、この定義のどこにも記述されていません。そのため、再生成後のコンテナには反映のしようがありません。
+いずれの経路でも、Terraformが実際に行っている処理は同じです。古いコンテナを破棄し、`main.tf`のリソース定義（`image`、`ports`、`upload`ブロック等）に基づいて新しいコンテナを作成します。この`upload`ブロックには、セクション4で確認したSSH公開鍵（`/home/ansible/.ssh/authorized_keys`）などが含まれていますが、Ansibleが実行時に投じた`/etc/lifecycle_test_marker.txt`のような設定は、この定義のどこにも記述されていません。そのため、再生成後のコンテナには反映のしようがありません。`create_before_destroy`によって作成の順序を入れ替えても、新しいコンテナが`main.tf`の定義から作られる点は変わりません。
 
-ここで重要なのは、この一連の処理が`terraform apply`の観点では正常に完了しているという点です。セクション2、3、4のいずれの`Apply complete`ログにも、エラーや警告は含まれていません。
+ここで重要なのは、再生成が完了したセクション4、6の処理が、`terraform apply`の観点では正常に完了しているという点です。いずれの`Apply complete`ログにも、エラーや警告は含まれていません。
 
 ```
 【Terraformから見た再生成】
@@ -641,9 +672,27 @@ tls_private_key.generatedの再生成 → replace_triggered_byによりtarget-no
 
 ### ■ 検証内容：再生成前のAnsible設定投入
 
-target-node1に対し、Ansibleでファイル配置とパッケージインストールを行います。
+target-node1に対し、Ansibleでファイル配置とパッケージインストールを行います。セクション4で対象を`target_nodes`に変更したPlaybookを、対象をtarget-node1のみに戻し、パッケージインストールのタスクを追加します。
 
-* **ファイル名：`playbooks/lifecycle_marker.yml`（該当箇所）**
+* **ファイル名：`playbooks/lifecycle_marker.yml`**
+
+**【変更前】**
+
+```yaml
+---
+- name: 第42回検証用マーカー配置Playbook
+  hosts: target_nodes
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: ライフサイクル検証用マーカーファイルを配置
+      ansible.builtin.copy:
+        dest: /etc/lifecycle_test_marker.txt
+        content: "created_by=ansible\n"
+```
+
+**【変更後】**
 
 ```yaml
 ---
@@ -807,9 +856,9 @@ exit_code=1
 
 ファイル（`/etc/lifecycle_test_marker.txt`）は`No such file or directory`となり、パッケージ（`tree`）は`which`が何も返さず終了コード`1`となりました。いずれもAnsibleが投じた設定であり、再生成前には確かに存在していたものです。
 
-`terraform apply`自体は、セクション2、3、4のいずれと同様、エラーや警告を一切出さずに`Apply complete`として完了しています。コンテナというリソースの再生成としては、この処理は完全に正常です。しかし、その内部にAnsibleが投じたファイルとパッケージは、種類を問わずどちらも、この正常な処理の中で静かに失われています。
+`terraform apply`自体は、セクション4と同様、エラーや警告を一切出さずに`Apply complete`として完了しています。コンテナというリソースの再生成としては、この処理は完全に正常です。しかし、その内部にAnsibleが投じたファイルとパッケージは、種類を問わずどちらも、この正常な処理の中で静かに失われています。
 
-セクション2から5にかけて整理してきた通り、この消失は特定の操作や特定の設定内容に固有の現象ではありません。`name`属性の変更（セクション2、3）でも、`replace_triggered_by`によるトリガー（セクション4）でも、再生成が発生した先には同じ結果が待っています。ファイルであれパッケージであれ、Ansibleがコンテナ内部に投じたものは、すべてtfstateの記録範囲の外側にあり、再生成のたびに保護も引き継ぎもされません。
+セクション2から5にかけて整理してきた通り、この消失は特定の操作や特定の設定内容に固有の現象ではありません。セクション6の`name`属性の変更でも、セクション4の`replace_triggered_by`によるトリガーでも、再生成が発生した先には同じ結果が待っています。ファイルであれパッケージであれ、Ansibleがコンテナ内部に投じたものは、すべてtfstateの記録範囲の外側にあり、再生成のたびに保護も引き継ぎもされません。
 
 ---
 
@@ -824,7 +873,7 @@ exit_code=1
 * `docker_container`の`name`属性のような、プロバイダー側でin-place更新に対応していない属性を変更すると、`lifecycle`ブロックを使わなくてもTerraformは自動的に破棄、再作成を計画することを実機で確認した
 * `create_before_destroy = true`は、破棄より先に新しいリソースの作成を試みる順序に変える。しかし固定の外部ポートを持つリソースでは、新旧が同時に存在する瞬間にホストポートが競合し、作成そのものが失敗することを実機で確認した
 * `replace_triggered_by`は、参照先リソースの変更を検知して、直接は変更していない別のリソースまで再生成対象にできる。`for_each`で複数インスタンスを一括生成しているリソースでは、`lifecycle`ブロックをインスタンスごとに個別指定できないため、影響範囲が意図した1台にとどまらず、全インスタンスに一律で及ぶことを実機で確認した
-* いずれの再生成も、Terraformにとっては`main.tf`の定義通りにリソースを作り直すという正常な処理であり、`terraform apply`はエラーや警告を出さずに完了する。この正常な処理の中で、Ansibleが投じたファイルとパッケージは、種類を問わずどちらも保護されずに失われることを実機で確認した
+* 再生成が完了したセクション4、6のいずれでも、Terraformにとっては`main.tf`の定義通りにリソースを作り直すという正常な処理であり、`terraform apply`はエラーや警告を出さずに完了する。この正常な処理の中で、Ansibleが投じたファイルとパッケージは、種類を問わずどちらも保護されずに失われることを実機で確認した
 * この消失は、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で整理した「認識の不可視性」が、リソースの破棄、再生成という操作をきっかけに、具体的な事象として表面化した結果である
 
 ---
@@ -835,7 +884,7 @@ exit_code=1
 
 ## 8. 次回予告
 
-第42回となる今回は、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で整理した「認識の不可視性」が実際に「破壊」として表面化する最初の具体例として、`lifecycle`ブロックによる強制再生成を扱いました。属性変更による素の再生成、`create_before_destroy`による順序制御、`replace_triggered_by`による明示的なトリガーという3つの角度から、それぞれ異なる制約と挙動を実機で確認したうえで、いずれの経路でも再生成後のコンテナからAnsibleが投じたファイル、パッケージが失われることを実機で再現しました。
+第42回となる今回は、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で整理した「認識の不可視性」が実際に「破壊」として表面化する最初の具体例として、`lifecycle`ブロックによる強制再生成を扱いました。属性変更による素の再生成、`create_before_destroy`による順序制御、`replace_triggered_by`による明示的なトリガーという3つの角度から、それぞれ異なる制約と挙動を実機で確認したうえで、再生成が完了した`name`属性の変更と`replace_triggered_by`のいずれの経路でも、再生成後のコンテナからAnsibleが投じたファイル、パッケージが失われることを実機で再現しました。
 
 次回は、この強制再生成とは逆に、リソースの誤った破棄を防ぐための`prevent_destroy`が、Ansibleの再実行要求とかみ合わずにデプロイそのものを詰まらせてしまう問題を扱います。
 
@@ -848,9 +897,9 @@ exit_code=1
 ---
 
 > **🗺️ 初めての方、シリーズの全体像を知りたい方はこちら**
-> 
+>
 > シリーズ全体については、以下のまとめブログで整理しています。
-> 
+>
 > → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第5部まとめブログ：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造](https://qiita.com/juehara-crypto/items/947ed3267bfbf7c954f7)**
 
 ---
