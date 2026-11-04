@@ -11,7 +11,6 @@ nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform
 relatedSeries: ''
 ---
 
-
 <style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
 
 > **🗺️ 初めての方、シリーズの全体像を知りたい方はこちら**
@@ -275,7 +274,7 @@ cat -n .github/workflows/e2e-provisioning-test.yml
     66            echo "no dangerous destroy-and-create pattern detected"
 ```
 
-49〜66行目が、この回で新たに追加した部分です。**[セクション2](#2-terraform-planの機械可読な出力)**・**[セクション3](#3-危険なactionsパターンの検出)** で確認した検出処理を、実際にワークフローへ組み込んでいます。`Trigger destroy-and-recreate (verification)`（49〜50行目）は、この回の検証のために意図的に危険な変更を発生させるステップです。実務ではこのステップは存在せず、コード変更それ自体が`replace_triggered_by`の条件を満たすことで、同じ状況が発生します。`Terraform Plan`（51〜55行目）には、16〜19行目の`Terraform Apply`ステップと同様、GitHub Secretsから`TF_VAR_ansible_user_password`等を受け渡す`env`ブロックが必要です。
+49〜66行目が、この回で新たに追加した部分です。**[セクション2](#2-terraform-planの機械可読な出力)**・**[セクション3](#3-危険なactionsパターンの検出)** で確認した検出処理を、実際にワークフローへ組み込んでいます。`Trigger destroy-and-recreate (verification)`（49〜50行目）は、この回の検証のために意図的に危険な変更を発生させるステップです。実務ではこのステップは存在せず、コード変更によって再生成が計画されることで、同じ状況が発生します。`Terraform Plan`（51〜55行目）には、16〜19行目の`Terraform Apply`ステップと同様、GitHub Secretsから`TF_VAR_ansible_user_password`等を受け渡す`env`ブロックが必要です。
 
 このワークフローを、GitHub Actionsの手動トリガー（`workflow_dispatch`）で実行します。
 
@@ -310,7 +309,9 @@ docker_container.targets["target-node2"]: Creation complete after 1s [id=2d7d74b
 Apply complete! Resources: 14 added, 0 changed, 0 destroyed.
 ```
 
-target-node1〜3を含む14リソースがすべて正常に作成されました。**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** で確認した通り、CI環境は毎回ゼロの状態からリソースを作成するため、ローカル環境の再作成（IPが`172.19.0.2`等に変わる挙動）とは別に、CI環境固有のIPアドレスが払い出されています。
+target-node1〜3を含む14リソースがすべて正常に作成されました。**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** で確認した通り、CI環境は毎回ゼロの状態からリソースを作成するため、ローカル環境とは別のtfstateで管理される、独立した環境になります。
+
+ログ中の`docker_image.***_target_legacy`等にある`***`は、GitHub Secretsのマスキングによって、Secretの値と一致する文字列が自動的に伏せ字になったものです。**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** でも確認した通り、リソース名の一部に同じ文字列が含まれている場合も対象になります。
 
 ### ■ 検証内容：危険な変更の発生
 
@@ -339,7 +340,25 @@ Terraform will perform the following actions:
 
   # docker_container.targets["target-node1"] must be replaced
 -/+ resource "docker_container" "targets" {
-（途中省略：属性の差分詳細）
+（途中省略：upload以外の属性の差分詳細）
+      - upload { # forces replacement
+          - content        = <<-EOT
+                ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ9ZflEAp+DdFuvvm/+Y7HhfCtg0n51gm5xN4IfNH9aM control@ubuntu-controller
+                
+                ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPEUj5wAQ+EPt/Jgx4ka9iGJlXk5sRkveWH0qj/Q6t75
+            EOT -> null
+          - executable     = false -> null
+          - file           = "/home/***/.ssh/authorized_keys" -> null
+            # (3 unchanged attributes hidden)
+        }
+      + upload { # forces replacement
+          + content        = (known after apply)
+          + executable     = false
+          + file           = "/home/***/.ssh/authorized_keys"
+            # (3 unchanged attributes hidden)
+        }
+
+        # (4 unchanged blocks hidden)
     }
 
   # docker_container.targets["target-node2"] must be replaced
@@ -360,7 +379,9 @@ To perform exactly these actions, run the following command to apply:
     terraform apply "tfplan"
 ```
 
-GitHub Actionsの「Terraform Plan」ステップは、`env`ブロックによる変数の受け渡しを追加したことで、対話プロンプトで止まることなく実行が完了しています。target-node1〜3の3台すべてに`must be replaced`が計画され、`Plan: 7 to add, 0 to change, 7 to destroy`という結果は、**[セクション2](#2-terraform-planの機械可読な出力)** でローカル環境から確認した構造と一致しています。
+GitHub Actionsの「Terraform Plan」ステップは、`env`ブロックによる変数の受け渡しを追加したことで、対話プロンプトで止まることなく実行が完了しています。target-node1〜3の3台すべてに`must be replaced`が計画され、`Plan: 7 to add, 0 to change, 7 to destroy`という件数は、**[セクション2](#2-terraform-planの機械可読な出力)** でローカル環境から確認した件数と一致しています。
+
+一方、再生成の理由の表示は、**[セクション2](#2-terraform-planの機械可読な出力)** のローカル環境（`will be replaced due to changes in replace_triggered_by`）とは異なります。GitHub Actionsの「Terraform Plan」のログでは、見出しが`must be replaced`となっており、`replace_triggered_by`による再生成を示す表示は現れていません。再生成の理由としては、上の抜粋にある通り、`upload`ブロックに`# forces replacement`が付いています。これは、`tls_private_key.generated`の再生成によって、`authorized_keys`の`content`が変わることを示すものです。いずれの表示の場合も、`actions`は`["delete", "create"]`になるため、次の検出ステップの条件には影響しません。
 
 ### ■ 検証内容：JSON化と危険パターンの検出、ジョブの失敗
 
@@ -409,9 +430,9 @@ Error: Process completed with exit code 1.
 
 ### ■ target-node1〜3を一律に対象とする理由
 
-`docker_container`という条件だけでは、target-node1〜3のうち、特定のノードだけをより厳格に扱う、という絞り込みも考えられます。たとえば、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** で確認した通り、この検証環境でステートフルなデータ（`records.db`）が投入されているのはtarget-node1のみであり、target-node2・3にはそうしたデータはありません。
+`docker_container`という条件のもとで、target-node1〜3のうち特定のノードだけをより厳格に扱う、という絞り込みも考えられます。たとえば、ステートフルなデータの有無や、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** でVolumeを導入したかどうかといった、ノードごとの違いを基準にする方法です。
 
-しかし、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** でVolumeによるデータの分離を導入して以降、target-node1のデータはコンテナの再生成そのものからは切り離されています。また、**[第48回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-48/)** でイミュータブル運用へ転換して以降、Ansibleが投じる設定はコンテナではなくイメージに焼き込まれており、target-node1・2・3のいずれが再生成されても、意図しない再生成そのものを検知する価値は変わりません。したがって、このガードでは、データの有無によってtarget-node群をさらに絞り込むことはせず、`docker_container`という条件のもとで、target-node1〜3を一律に警戒対象とします。
+しかし、この検証環境のtarget-node1〜3は、いずれも起動後にAnsibleがコンテナ内部へ設定を投入する構成です。**[第48回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-48/)** で確認したビルド時のAnsible適用は、検証用の`immutable-verify-node`で行ったものであり、target-node1〜3はこの構成のままです。この構成では、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で確認した通り、どのノードが再生成されても、Ansibleが投じた設定は失われます。また、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** のVolumeによる保護は、明示的にマウントした範囲に限られます。したがって、このガードでは、ノードごとの違いによってtarget-node群をさらに絞り込むことはせず、`docker_container`という条件のもとで、target-node1〜3を一律に警戒対象とします。
 
 ### ■ 完全ブロックではなく一段階の確認を強制する
 
@@ -453,7 +474,6 @@ Error: Process completed with exit code 1.
 
 ---
 
-
 ## 7. まとめ
 
 この回で整理した内容を確認します。
@@ -461,7 +481,7 @@ Error: Process completed with exit code 1.
 * `terraform plan -out=tfplan`で計画を保存し、`terraform show -json tfplan`でJSON形式の差分情報を取得できることを実機で確認した。この出力の`resource_changes`配列にはリソースごとの`change.actions`が含まれており、`["delete", "create"]`という値がDestroy & Createに相当することを、実際に`replace_triggered_by`による再生成を発生させて確認した
 * `actions == ["delete", "create"]`という条件だけでは、`docker_container.targets`だけでなく`local_file`や`tls_private_key`まで一律に検出されてしまうことを実機で確認した。`type == "docker_container"`という条件を加えることで、target-node1〜3の3件だけに絞り込めることを、`jq`による実機検証で確認した
 * GitHub Actionsのワークフローに、`terraform plan`の実行、JSON化、危険パターンの検出という一連のステップを追加し、危険パターンが検出された場合はジョブそのものを失敗させ、`apply`ステップに進ませない構成を実機で確認した。CI上で実際に`danger detected: 3 docker_container resource(s) planned for destroy-and-create`という出力とともにジョブが失敗する様子を確認できた
-* このガードは、`docker_container`という条件のもとでtarget-node1〜3を一律に警戒対象とする設計とした。**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** のVolume導入、**[第48回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-48/)** のイミュータブル運用への転換により、データの有無によってノードを絞り込む必要性は薄れているためである
+* このガードは、`docker_container`という条件のもとでtarget-node1〜3を一律に警戒対象とする設計とした。target-node1〜3は、いずれも起動後にAnsibleで設定する構成であり、どのノードが再生成されても、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で確認した設定の消失が起こり得るためである
 * このガードは、危険パターンを検出するたびにジョブを失敗させる、一時的なチェック工程として実装した。GitHub ActionsのEnvironmentsと組み合わせることで、検出時に即座に失敗させるのではなく、承認を経て通過させるという拡張も可能であることを整理した
 * **[第43回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-43/)** の`prevent_destroy`が、コードに組み込む恒久的、無条件の制約であるのに対し、この回のガードはCI/CDワークフロー側の着脱可能なチェック工程である。`prevent_destroy`が「破棄そのものを起こさせない」設計であるのに対し、このガードは「破棄が計画された事実を、実行前に人間の目に必ず触れさせる」設計である
 
