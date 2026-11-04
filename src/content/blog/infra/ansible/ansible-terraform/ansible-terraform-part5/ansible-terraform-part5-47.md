@@ -55,7 +55,6 @@ Terraformによるリソースの再生成は、設定だけでなく、稼働�
 
 ---
 
-
 ## 2. `docker_volume`リソースの独立性
 
 この回の解決策の土台となる、Volumeというリソースの性質を整理します。
@@ -116,6 +115,7 @@ docker_volume.target_node1_data: Creation complete after 0s [id=target-node1-dat
 ```
 
 `docker_volume.target_node1_data`の作成は、`local_file.private_key`の作成と並行して進んでおり、`id=target-node1-data`として、他のリソースとは独立したタイミングでVolumeが作成されたことが確認できます。
+
 ```
 
 【docker_containerとdocker_volumeの関係】  
@@ -262,7 +262,6 @@ Volume（docker_volume.target_node1_data）
 
 ---
 
-
 ## 4. 再生成時のVolumeの挙動
 
 コンテナが再生成された際、Volumeがどう振る舞うかを整理します。
@@ -272,6 +271,7 @@ Volume（docker_volume.target_node1_data）
 Dockerの名前付きVolumeは、それをマウントしているコンテナが破棄されても、Volume自体は削除されません。コンテナとVolumeは、Docker上でも別々の管理対象であり、コンテナの削除操作がVolumeにまで及ぶことはありません（Volumeを明示的に削除するには、`docker volume rm`のような別の操作が必要です）。
 
 この性質をもとに整理すると、Volumeを使った構成での再生成は、以下のような流れをたどります。
+
 ```
 
 ① コンテナが破棄される（Volumeは影響を受けない）  
@@ -285,6 +285,7 @@ Dockerの名前付きVolumeは、それをマウントしているコンテナ�
 ```
 
 セクション3で確認した`main.tf`の構成では、target-node1が再生成された場合も、`docker_container.targets["target-node1"]`の`volumes`ブロックは変わらず`docker_volume.target_node1_data.name`を参照し続けます。コンテナ側の`id`が変わっても、参照先のVolume自体（`id=target-node1-data`）は同一のまま存在し続けるため、新しいコンテナは同じVolumeを再マウントすることになります。
+
 ```
 
 【Volume未使用（第44回の構成）】  
@@ -295,14 +296,13 @@ Dockerの名前付きVolumeは、それをマウントしているコンテナ�
 
 ```
 
-この構造が実際にそのまま機能するかどうかは、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** と同様の手順でデータを投入したうえで、コンテナの再生成を実際に発生させて確認します。
+この構造が実際にそのまま機能するかどうかは、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** と同様にデータを投入したうえで、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** と同じ`replace_triggered_by`によるコンテナの再生成を実際に発生させて確認します。
 
 ---
 
 [↑ 目次に戻る](#-目次)
 
 ---
-
 
 ## 5. 設計上の注意点
 
@@ -369,7 +369,7 @@ target-node1のVolumeマウントパス（`/var/lib/app_data`）配下に、**[�
            INSERT INTO records (note) VALUES ('record-1'), ('record-2'), ('record-3');"
 ```
 
-**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** のPlaybookとは異なり、データ格納用ディレクトリを作成するタスクは含まれていません。`/var/lib/app_data`はVolumeのマウントポイントとしてDockerが既に用意しているため、ディレクトリ自体は既に存在しています。
+**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** のPlaybookとは異なり、データ格納用ディレクトリを作成するタスクは含まれていません。`/var/lib/app_data`はVolumeのマウントポイントとしてDockerが既に用意しているため、ディレクトリ自体は既に存在しています。以下のコマンドは、Terraformの作業ディレクトリ（`~/iac/docker-lab`）から実行しています。
 
 **実行コマンド**
 
@@ -738,7 +738,7 @@ docker exec -it target-node1 bash -c "sqlite3 /var/lib/app_data/records.db 'SELE
 
 ### ■ 結果
 
-`record-1`・`record-2`・`record-3`の3件のレコードすべてが、コンテナの再生成後も失われていないことを確認できました。**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** では、同様の`replace_triggered_by`による再生成によってこの種のデータがすべて失われることを確認しましたが、今回はVolumeにマウントした`/var/lib/app_data`配下のデータのみが、コンテナのライフサイクルを超えて引き継がれました。
+`record-1`・`record-2`・`record-3`の3件のレコードすべてが、コンテナの再生成後も失われていないことを確認できました。**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** では同様の`replace_triggered_by`による再生成によって、**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** では`docker_network`の変更を起点とした連鎖的な再生成によって、この種のデータがすべて失われることを確認しましたが、今回はVolumeにマウントした`/var/lib/app_data`配下のデータのみが、コンテナのライフサイクルを超えて引き継がれました。
 
 一方で、`sqlite3`パッケージ自体はVolume化していない範囲にあったため、コンテナの再生成によって失われました。この結果は、**[セクション5](#5-設計上の注意点)** で整理した「Volumeによる保護は、明示的にマウントした範囲に限られる」という原則を、そのまま裏付けるものになりました。
 
@@ -748,14 +748,13 @@ docker exec -it target-node1 bash -c "sqlite3 /var/lib/app_data/records.db 'SELE
 
 ---
 
-
 ## 7. まとめ
 
 この回で整理した内容を確認します。
 
 * Volumeはコンテナとは別のリソース（`docker_volume`）として管理されており、コンテナ側の属性変更によってコンテナが再生成されても、Volumeリソース自体は変更対象にならないことを実機で確認した
 * `docker_container`の`volumes`ブロックで`volume_name`を指定してマウントする構成により、コンテナの書き込み可能レイヤーとVolumeが別のライフサイクルを持つことを整理した
-* target-node1にVolumeをマウントした状態でAnsibleによりデータストア（`sqlite3`パッケージ、`records.db`、3件のレコード）を投入したうえで、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** と同じ`replace_triggered_by`による再生成を発生させ、Volumeにマウントした`/var/lib/app_data`配下のデータ（`records.db`とその中身）が再生成後も失われないことを実機で確認した
+* target-node1にVolumeをマウントした状態でAnsibleによりデータストア（`sqlite3`パッケージ、`records.db`、3件のレコード）を投入したうえで、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** と同じ`replace_triggered_by`による再生成を発生させ、Volumeにマウントした`/var/lib/app_data`配下のデータ（`records.db`とその中身）が再生成後も失われないことを実機で確認した
 * 一方で、`sqlite3`パッケージ自体はVolume化していない範囲（コンテナの書き込み可能レイヤー）にあったため、コンテナの再生成によって失われることも実機で確認した。Volumeによる保護は自動的な万能策ではなく、明示的にマウントした範囲に限られることが、この対比から裏付けられた
 * **[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第45回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-45/)** で確認した「消える」結果と、今回の「Volume化した範囲は残る」という結果を対比させることで、コンテナ再生成に対するデータ保護の実現方法を実機で示すことができた
 
