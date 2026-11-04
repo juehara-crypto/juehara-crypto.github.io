@@ -46,7 +46,7 @@ Volumeによるデータの分離さえ導入すれば、Terraformによるリ�
 
 **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** では、TerraformのState管理が記録する範囲を`terraform show`によって確認し、tfstateがコンテナ内部のOSレイヤーの状態を観測対象に含めていないという構造を「認識の不可視性」として整理しました。この不可視性は、Ansibleが実行時にコンテナ内部を変更するからこそ生じていました。ビルド時に設定を完了させ、コンテナイメージそのものに焼き込んだ場合、Ansibleが変更する対象はコンテナ内部ではなく、イメージのビルドプロセスに変わります。この転換によって、認識の不可視性の前提そのものがどう変わるのかを整理することが、この回の目的です。
 
-この回で扱う問いは、「Ansibleの役割をビルド時に前倒しすると、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた問題はどう変わるのか」です。
+この回で扱う問いは、「Ansibleの役割をビルド時に前倒しすると、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた設定消失とデータ消失の問題はどう変わるのか」です。
 
 次のセクションでは、ビルド時にAnsibleを適用する具体的な仕組みを整理します。
 
@@ -55,7 +55,6 @@ Volumeによるデータの分離さえ導入すれば、Terraformによるリ�
 [↑ 目次に戻る](#-目次)
 
 ---
-
 
 ## 2. ビルド時Ansible適用の仕組み
 
@@ -67,15 +66,14 @@ Volumeによるデータの分離さえ導入すれば、Terraformによるリ�
 * 一時的に起動したコンテナに対してAnsibleを適用したうえで、`docker commit`によりイメージ化する方式
 
 いずれの方式も、コンテナが実際に稼働を始める前の段階で、Ansibleによる設定投入を完了させ、その結果をイメージそのものに確定させるという点で共通しています。この「起動前にコンテナ内部の状態を確定させる」という一点が、この回で扱う構成の土台になります。
-```
 
-【これまでの構成（第1〜47回）】  
+```
+【これまでの構成（第1〜47回）】
 ビルド（イメージ作成） → コンテナ起動 → Ansibleが起動後のコンテナに接続して設定投入
 
-【イミュータブル構成（この回）】  
+【イミュータブル構成（この回）】
 ビルド（イメージ作成、内部でAnsibleを適用） → コンテナ起動（設定投入済みの状態で起動するのみ）
-
-````
+```
 
 この検証環境では、`module.image_ansible_target`によってSSHDのみを含む最小構成のイメージをビルドし、起動後に`null_resource.provision`経由でAnsibleを適用する構成を取ってきました。この回では、`docker build`のビルドプロセス内でAnsibleを実行する方式を選び、既存の`Dockerfile`をもとに新しい`Dockerfile.immutable`を作成します。
 
@@ -172,7 +170,54 @@ module "image_immutable_target" {
 }
 ```
 
-既存の`module.image_ansible_target`が参照している`./modules/ansible_target_image`モジュールをそのまま流用し、`dockerfile`にのみ`Dockerfile.immutable`を指定しています。この状態で`terraform init`を実行し、新規モジュールが認識されることを確認したうえで、`terraform apply`を実行します。
+既存の`module.image_ansible_target`が参照している`./modules/ansible_target_image`モジュールをそのまま流用し、`dockerfile`にのみ`Dockerfile.immutable`を指定しています。新規モジュールを認識させるため、`terraform init`を実行します。
+
+**実行コマンド**
+
+```plaintext
+terraform init
+```
+
+**▼実行結果**
+
+```plaintext
+Initializing modules...
+- image_immutable_target in modules/ansible_target_image
+Initializing provider plugins found in the configuration...
+- Reusing previous version of kreuzwerker/docker from the dependency lock file
+- Reusing previous version of hashicorp/local from the dependency lock file
+- Reusing previous version of hashicorp/null from the dependency lock file
+- Reusing previous version of hashicorp/tls from the dependency lock file
+- Using previously-installed kreuzwerker/docker v3.0.2
+- Using previously-installed hashicorp/local v2.9.0
+- Using previously-installed hashicorp/null v3.3.0
+- Using previously-installed hashicorp/tls v4.3.0
+
+Initializing the backend...
+
+Initializing provider plugins found in the state...
+- Reusing previous version of kreuzwerker/docker
+- Reusing previous version of hashicorp/local
+- Reusing previous version of hashicorp/null
+- Reusing previous version of hashicorp/tls
+- Using previously-installed hashicorp/local v2.9.0
+- Using previously-installed hashicorp/null v3.3.0
+- Using previously-installed hashicorp/tls v4.3.0
+- Using previously-installed kreuzwerker/docker v3.0.2
+
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+
+`image_immutable_target in modules/ansible_target_image`として、新規モジュールが認識されました。続けて`terraform apply`を実行します。
 
 **実行コマンド**
 
@@ -252,7 +297,6 @@ docker build -f Dockerfile.immutable --build-arg ANSIBLE_USER_PASSWORD=ansible -
 
 次のセクションでは、この構成が、これまでの実行時構成とどう役割が異なるかを整理します。
 
-
 ---
 
 [↑ 目次に戻る](#-目次)
@@ -263,17 +307,19 @@ docker build -f Dockerfile.immutable --build-arg ANSIBLE_USER_PASSWORD=ansible -
 
 **[セクション2](#2-ビルド時ansible適用の仕組み)** で確認したビルド時適用が、これまでの実行時構成とどう役割が異なるかを整理します。
 
-これまでの構成（**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)**から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)**）では、Ansibleが対象にしていたのは「起動後のコンテナ」でした。**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で確認した通り、`null_resource.provision`は`docker_container.targets`の作成が完了したあとに`local-exec`でAnsibleを実行し、target-node1〜3というすでに起動しているコンテナへSSH接続して設定を投入していました。この構成では、Terraformが扱う`docker_container`はあくまで「Ansibleが後から接続する先」であり、コンテナが起動した時点ではまだ設定は完了していません。
+これまでの構成（**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)**）では、Ansibleが対象にしていたのは「起動後のコンテナ」でした。この検証環境では、`null_resource.provision`が`docker_container.targets`の作成が完了したあとに`local-exec`で`ansible-playbook -i inventory.ini site.yml`を実行し、target-node1〜3というすでに起動しているコンテナへSSH接続して設定を投入していました。この構成では、Terraformが扱う`docker_container`はあくまで「Ansibleが後から接続する先」であり、コンテナが起動した時点ではまだ設定は完了していません。
 
+```
 【これまでの構成（第1〜47回）】
 terraform apply → コンテナ起動（未設定） → Ansibleが起動後のコンテナに接続して設定投入 → 設定完了
-
+```
 
 一方、この回の構成では、Ansibleが対象にするのは「イメージビルドプロセス」そのものです。**[セクション2](#2-ビルド時ansible適用の仕組み)** で確認した通り、`Dockerfile.immutable`内の`RUN ansible-playbook`は、コンテナが起動するよりも前、イメージのビルド段階で実行されます。この時点でAnsibleによる設定投入はイメージのレイヤーとして確定しており、`docker_container.targets`に相当するリソースが実際にコンテナとして起動する頃には、設定はすでに完了しています。
 
+```
 【イミュータブル構成（この回）】
 docker build（内部でAnsible実行、設定確定） → terraform apply → コンテナ起動（設定済み） → 起動後にAnsibleが介入する余地なし
-
+```
 
 この違いを、実機で直接確認します。
 
@@ -343,7 +389,7 @@ tree v2.0.2 (c) 1996 - 2022 by Steve Baker, Thomas Moore, Francesc Rocher, Flori
 
 これまでの構成であれば、コンテナが起動した直後の状態はSSHDのみが動く最小限のものであり、Ansibleが接続して初めてこの2つが揃います。今回のコンテナには、その「接続して設定する」という工程そのものが一度も発生していません。この対比から、Terraformが扱う`docker_container`は、この構成ではビルド済みイメージから起動するだけの存在になっており、起動後にAnsibleが介入する余地がなくなっていることが実機で確認できました。
 
-次のセクションでは、この転換によって、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた問題群がどこまで解消されるのかを整理します。
+次のセクションでは、この転換によって、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた設定消失とデータ消失の問題がどこまで解消されるのかを整理します。
 
 ---
 
@@ -351,52 +397,209 @@ tree v2.0.2 (c) 1996 - 2022 by Steve Baker, Thomas Moore, Francesc Rocher, Flori
 
 ---
 
-
 ## 4. 解消される問題と解消されない問題の整理
 
-この回の中心となる整理です。ビルド時への転換によって、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた問題群のうち、どこまでが解消され、どこからが解消されないのかを整理します。
+この回の中心となる整理です。ビルド時への転換によって、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた設定消失とデータ消失の問題のうち、どこまでが解消され、どこからが解消されないのかを整理します。
 
-| 回                                                                                                                                                                                                                                                                           | 問題            | イミュータブル化による変化              |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
-| **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**                                                                                                                                       | 強制再生成による設定消失  | 実質的に解消（設定はイメージに含まれる）       |
-| **[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**・**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** | ステートフルなデータの消失 | 影響を受けない（Volume等の設計が引き続き必要） |
+|回|問題|イミュータブル化による変化|
+|---|---|---|
+|**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)**|強制再生成による設定消失|実質的に解消（設定はイメージに含まれる）|
+|**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**・**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)**|ステートフルなデータの消失|影響を受けない（Volume等の設計が引き続き必要）|
 
 ### ■ 第42回との対比：強制再生成による設定消失
 
 **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** では、`name`属性の変更のような、`lifecycle`ブロックを使わない素の再生成によって、Ansibleが投じたファイル（`/etc/lifecycle_test_marker.txt`）とパッケージ（`tree`）の両方が失われることを確認しました。この消失は、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で整理した「認識の不可視性」、つまりtfstateがコンテナ内部のOSレイヤーの状態を観測対象に含めていないという構造から導かれる帰結でした。
 
-**[セクション3](#3-実行時構成との役割の違い)** で確認した通り、ビルド時に設定を焼き込んだ`immutable-verify-node`に対し、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** と同じ`name`属性の変更による再生成を発生させたところ、マーカーファイル（`/etc/immutable_build_marker.txt`）と`tree`パッケージのどちらも、再生成後のコンテナに引き継がれていました。
+**[セクション3](#3-実行時構成との役割の違い)** で起動確認に使った`docker_container.immutable_verify`に対し、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** と同じ手法で`name`属性のみを変更し、ビルド時に焼き込んだ設定が再生成後も残るかを確認します。
 
-この結果の違いは、焼き込まれた設定がどのリソースに属しているかという点から説明できます。**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で失われた設定は、Ansibleが実行時にコンテナ内部（tfstateの観測範囲外）へ投じたものであり、コンテナという1つのリソースの内部にしか存在していませんでした。一方、この回で焼き込んだ設定は、`docker_image.this`というコンテナとは別の独立したリソースの中に確定しています。**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** の`docker_volume`がコンテナの再生成に巻き込まれず存続したのと同じように、`docker_image.this`もコンテナの破棄、再生成の対象には含まれません。**[セクション3](#3-実行時構成との役割の違い)** の`terraform plan`結果でも、再生成の対象は`docker_container.immutable_verify`のみであり、イメージ本体は一切変更対象になっていませんでした。新しいコンテナは、`image = module.image_immutable_target.image_id`という参照を通じて、この存続したイメージをそのまま使って作られています。
+### ■ 検証内容：`name`属性の変更
+
+* **ファイル名：`main.tf`（該当箇所）**
+
+**【変更前】**
+
+```hcl
+resource "docker_container" "immutable_verify" {
+  name    = "immutable-verify-node"
+  image   = module.image_immutable_target.image_id
+  command = ["/usr/sbin/sshd", "-D"]
+}
 ```
 
-【第42回：実行時に投じた設定】  
-設定はコンテナという1つのリソースの内部にのみ存在  
+**【変更後】**
+
+```hcl
+resource "docker_container" "immutable_verify" {
+  name    = "immutable-verify-node-renamed"
+  image   = module.image_immutable_target.image_id
+  command = ["/usr/sbin/sshd", "-D"]
+}
+```
+
+この状態で`terraform plan`を実行します。
+
+**実行コマンド**
+
+```plaintext
+terraform plan
+```
+
+**▼実行結果（該当箇所抜粋）**
+
+```plaintext
+（途中省略：Refreshing state...によるリソース一覧の出力）
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # docker_container.immutable_verify must be replaced
+-/+ resource "docker_container" "immutable_verify" {
+      + bridge                                      = (known after apply)
+      + container_logs                              = (known after apply)
+      - cpu_shares                                  = 0 -> null
+      - dns                                         = [] -> null
+      - dns_opts                                    = [] -> null
+      - dns_search                                  = [] -> null
+      ~ entrypoint                                  = [] -> (known after apply)
+      ~ env                                         = [] -> (known after apply)
+      + exit_code                                   = (known after apply)
+      - group_add                                   = [] -> null
+      ~ hostname                                    = "1ba635c397fa" -> (known after apply)
+      ~ id                                          = "1ba635c397faee31646ff9a7ba4126b2deb3a92509a6f006b7c69a9fb5b67671" -> (known after apply)
+      ~ init                                        = false -> (known after apply)
+      ~ ipc_mode                                    = "private" -> (known after apply)
+      ~ log_driver                                  = "json-file" -> (known after apply)
+      - log_opts                                    = {} -> null
+      - max_retry_count                             = 0 -> null
+      - memory                                      = 0 -> null
+      - memory_swap                                 = 0 -> null
+      ~ name                                        = "immutable-verify-node" -> "immutable-verify-node-renamed" # forces replacement
+      ~ network_data                                = [
+          - {
+              - gateway                   = "172.17.0.1"
+              - global_ipv6_prefix_length = 0
+              - ip_address                = "172.17.0.2"
+              - ip_prefix_length          = 16
+              - mac_address               = "ae:3a:c5:16:87:c1"
+              - network_name              = "bridge"
+                # (2 unchanged attributes hidden)
+            },
+        ] -> (known after apply)
+      - network_mode                                = "bridge" -> null # forces replacement
+      - privileged                                  = false -> null
+      - publish_all_ports                           = false -> null
+      ~ runtime                                     = "runc" -> (known after apply)
+      ~ security_opts                               = [] -> (known after apply)
+      ~ shm_size                                    = 64 -> (known after apply)
+      + stop_signal                                 = (known after apply)
+      ~ stop_timeout                                = 0 -> (known after apply)
+      - storage_opts                                = {} -> null
+      - sysctls                                     = {} -> null
+      - tmpfs                                       = {} -> null
+        # (21 unchanged attributes hidden)
+
+      ~ healthcheck (known after apply)
+
+      ~ labels (known after apply)
+    }
+
+Plan: 1 to add, 0 to change, 1 to destroy.
+
+────────────────────────────────────────────────────────────────────────────────────────────── ──────────────────────────────────────────────────────────────────────────────────────────────
+
+Note: You didn't use the -out option to save this plan, so Terraform can't guarantee to take exactly these actions if you run "terraform apply" now.
+```
+
+`docker_container.immutable_verify must be replaced`のみが計画され、`~ name = "immutable-verify-node" -> "immutable-verify-node-renamed" # forces replacement`が再生成の直接の原因です。`- network_mode = "bridge" -> null # forces replacement`も表示されていますが、このリソースには`docker_container.targets`のような`ignore_changes = [network_mode]`を指定していないためです。target-node1〜3、および`module.image_immutable_target.docker_image.this`は、この計画の対象に含まれていません。この計画で`terraform apply`を実行します。
+
+### ■ 検証内容：再生成の実行と設定の確認
+
+**実行コマンド**
+
+```plaintext
+terraform apply
+```
+
+**▼実行結果（該当箇所抜粋）**
+
+```plaintext
+（途中省略：Refreshing state...によるリソース一覧の出力、Planの再掲、yes確認）
+
+docker_container.immutable_verify: Destroying... [id=1ba635c397faee31646ff9a7ba4126b2deb3a92509a6f006b7c69a9fb5b67671]
+docker_container.immutable_verify: Destruction complete after 0s
+docker_container.immutable_verify: Creating...
+docker_container.immutable_verify: Creation complete after 2s [id=da4c4c2f4196f9b30a51bdbde053997950058421acc86d29560da35f6b4ce385]
+
+Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
+
+（途中省略：Outputs）
+```
+
+再生成後のコンテナ名とIDを確認します。
+
+**実行コマンド**
+
+```plaintext
+docker ps -a | grep -i immutable-verify
+```
+
+**▼実行結果**
+
+```plaintext
+da4c4c2f4196   4749a0ce1054   "/usr/sbin/sshd -D"   32 seconds ago   Up 31 seconds   22/tcp                 immutable-verify-node-renamed
+```
+
+コンテナIDは破棄前の`1ba635c397fa`から`da4c4c2f4196`に変わっています。この新しいコンテナに対し、**[セクション3](#3-実行時構成との役割の違い)** と同じ内容を確認します。
+
+**実行コマンド**
+
+```plaintext
+docker exec -it immutable-verify-node-renamed bash -c "cat /etc/immutable_build_marker.txt"
+docker exec -it immutable-verify-node-renamed bash -c "which tree && tree --version"
+```
+
+**▼実行結果**
+
+```plaintext
+built_by=ansible(build-time)
+/usr/bin/tree
+tree v2.0.2 (c) 1996 - 2022 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro
+```
+
+マーカーファイル（`/etc/immutable_build_marker.txt`）と`tree`パッケージのどちらも、再生成後のコンテナに残っています。**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** では、同じ`name`属性の変更による再生成で両方とも失われていました。
+
+### ■ 第42回との結果の違い
+
+この結果の違いは、焼き込まれた設定がどのリソースに属しているかという点から説明できます。**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で失われた設定は、Ansibleが実行時にコンテナ内部（tfstateの観測範囲外）へ投じたものであり、コンテナという1つのリソースの内部にしか存在していませんでした。一方、この回で焼き込んだ設定は、`docker_image.this`というコンテナとは別の独立したリソースの中に確定しています。**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** の`docker_volume`がコンテナの再生成に巻き込まれず存続したのと同じように、`docker_image.this`もコンテナの破棄、再生成の対象には含まれません。上記の`terraform plan`結果でも、再生成の対象は`docker_container.immutable_verify`のみであり、イメージ本体は一切変更対象になっていませんでした。新しいコンテナは、`image = module.image_immutable_target.image_id`という参照を通じて、この存続したイメージをそのまま使って作られています。
+
+```
+【第42回：実行時に投じた設定】
+設定はコンテナという1つのリソースの内部にのみ存在
 　→ コンテナが再生成されると、設定も一緒に失われる
 
-【第48回：ビルド時に焼き込んだ設定】  
-設定はdocker_imageというコンテナとは別の独立したリソースの中に確定  
+【第48回：ビルド時に焼き込んだ設定】
+設定はdocker_imageというコンテナとは別の独立したリソースの中に確定
 　→ コンテナが再生成されても、イメージ自体は存続し、新しいコンテナが再度参照する
-
 ```
 
 したがって、`lifecycle`ブロックによる強制再生成のような、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で確認した設定消失は、ビルド時への転換によって実質的に解消されるといえます。ただしこれは、Terraformが焼き込まれた設定を何らかの形で保護しているためではなく、設定の器そのものが、コンテナとは別のライフサイクルを持つリソースに移ったことの結果です。
 
 ### ■ 第44回・第47回との対比：ステートフルなデータの消失
 
-一方、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)** ・**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱った問題は、この転換によっても影響を受けません。
+一方、**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**・**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱った問題は、この転換によっても影響を受けません。
 
 **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で整理した通り、Volumeによる保護は自動的な万能策ではなく、明示的にマウントした範囲に限られます。ビルド時への転換は、あくまでイメージという静的な成果物に設定を確定させる仕組みであり、稼働後に増え続けるデータをどう扱うかという課題には関与しません。データはビルド時点では未生成であり、そもそも焼き込む対象として存在しないためです。
-```
 
-【ビルド時に確定できるもの】  
-設定ファイル、パッケージ導入等の静的な設定  
+```
+【ビルド時に確定できるもの】
+設定ファイル、パッケージ導入等の静的な設定
 　→ ビルド時にイメージへ焼き込み、docker_imageという独立したリソースとして再生成を通過できる
 
-【ビルド時に確定できないもの】  
-稼働後に生成され続けるデータ（データベースのレコード等）  
+【ビルド時に確定できないもの】
+稼働後に生成され続けるデータ（データベースのレコード等）
 　→ イメージには含まれず、Volume等の別の仕組みで保護する必要がある
-
 ```
 
 したがって、この検証環境でイミュータブル運用へ転換した場合も、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で導入した`docker_volume.target_node1_data`のようなデータ永続化の設計は、引き続き必要になります。
@@ -417,21 +620,20 @@ tree v2.0.2 (c) 1996 - 2022 by Steve Baker, Thomas Moore, Francesc Rocher, Flori
 イミュータブル運用への転換によって、Ansibleそのものが不要になるわけではないことを整理します。
 
 **[セクション2](#2-ビルド時ansible適用の仕組み)** から **[セクション4](#4-解消される問題と解消されない問題の整理)** で見てきた転換は、あくまでAnsibleを実行するタイミングを「コンテナ起動後」から「イメージビルド時」に移したものです。**[セクション2](#2-ビルド時ansible適用の仕組み)** で新規作成した`playbooks_build/immutable_setup.yml`は、これまでのPlaybook（`site.yml`、`roles/common`等）と同様に、`ansible.builtin.copy`や`ansible.builtin.apt`といった通常のAnsibleモジュールで構成されています。Playbookそのものの書き方や、モジュールの選び方に、イミュータブル運用特有の制約が新たに生じているわけではありません。
-```
 
-【これまでの構成】  
-Playbookの実行対象：起動中の本番コンテナ（target-node1〜3）  
+```
+【これまでの構成】
+Playbookの実行対象：起動中の本番コンテナ（target-node1〜3）
 実行方法：SSH経由、null_resource.provisionのlocal-exec
 
-【イミュータブル構成（この回）】  
-Playbookの実行対象：イメージビルド用の一時的な環境（ビルド中のコンテナ）  
+【イミュータブル構成（この回）】
+Playbookの実行対象：イメージビルド用の一時的な環境（ビルド中のコンテナ）
 実行方法：connection: localによるローカル実行、Dockerfile内のRUN命令
-
 ```
 
 変わったのは実行対象と実行方法であり、Ansibleというツールの役割そのものではありません。Ansibleは、OS、パッケージ、ファイル、サービス等の構成を手続き的に管理するツールです。この管理対象自体は、それがビルド中の一時的な環境であっても、稼働中の本番コンテナであっても変わりません。
 
-この点は、Playbookの設計原則にも及びます。冪等性シリーズで扱ってきた「同じPlaybookを何度実行しても同じ結果になる」という冪等性の考え方は、ビルド時の実行であっても引き続き重要です。**[セクション2](#2-ビルド時ansible適用の仕組み)** の`immutable_setup.yml`で使用した`ansible.builtin.apt`（`state: present`）は、パッケージが既に存在する場合は`changed`にならず、何度実行しても同じ状態に収束するモジュールです。イメージのビルドは、開発中に何度もやり直される作業であり、その都度Playbookが再実行されます。ビルド専用の一時的な環境で実行されるからといって、非冪等なタスク（`shell`モジュールでの直接操作等）を安易に持ち込んでよいことにはなりません。
+この点は、Playbookの設計原則にも及びます。**[冪等性シリーズ第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-idempotency/ansible-idempotency-01/)** などで扱ってきた「同じPlaybookを何度実行しても同じ結果になる」という冪等性の考え方は、ビルド時の実行であっても引き続き重要です。**[セクション2](#2-ビルド時ansible適用の仕組み)** の`immutable_setup.yml`で使用した`ansible.builtin.apt`（`state: present`）は、パッケージが既に存在する場合は`changed`にならず、何度実行しても同じ状態に収束するモジュールです。イメージのビルドは、開発中に何度もやり直される作業であり、その都度Playbookが再実行されます。ビルド専用の一時的な環境で実行されるからといって、非冪等なタスク（`shell`モジュールでの直接操作等）を安易に持ち込んでよいことにはなりません。
 
 したがって、イミュータブル運用への移行は、「Ansibleを使わない」という選択ではなく、「Ansibleを使うタイミングを変える」という選択です。Playbookの実行対象が本番コンテナから一時的なビルド環境に変わっても、Ansible自体の設計上の配慮（冪等性の確保、モジュールの選定）が不要になるわけではありません。
 
@@ -443,46 +645,40 @@ Playbookの実行対象：イメージビルド用の一時的な環境（ビル
 
 ---
 
-
-
 ## 6. 移行に伴うトレードオフ
 
 この転換が万能な解決策ではないことを整理します。
 
 **[セクション4](#4-解消される問題と解消されない問題の整理)** で確認した通り、ビルド時への転換によって、`lifecycle`ブロックによる強制再生成のような設定消失は実質的に解消されます。しかし、この解決には見合った負担が伴います。
 
-これまでの構成（**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** ）では、target-node1〜3のAnsible設定を変更したい場合、Playbookを書き換えて`ansible-playbook`を再実行するだけで、既存のコンテナに対してその変更を直接適用できました。コンテナ自体を作り直す必要はありません。
+これまでの構成（**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)**）では、target-node1〜3のAnsible設定を変更したい場合、Playbookを書き換えて`ansible-playbook`を再実行するだけで、既存のコンテナに対してその変更を直接適用できました。コンテナ自体を作り直す必要はありません。
 
 一方、イミュータブル運用に転換した場合、設定の変更手順は以下のようになります。
-```
 
-【これまでの構成】  
+```
+【これまでの構成】
 Playbook変更 → ansible-playbook再実行 → 既存コンテナに直接反映
 
-【イミュータブル構成（この回）】  
+【イミュータブル構成（この回）】
 Playbook変更 → イメージの再ビルド → 新しいイメージからコンテナを再作成 → 反映
-
 ```
 
 **[セクション2](#2-ビルド時ansible適用の仕組み)** で確認した通り、`docker build`のビルド自体にも一定の時間がかかります（今回の検証では、Ansible実行部分だけで40秒以上を要しました）。ちょっとした設定変更のたびに、イメージのビルドから始める必要があり、これまでのようにPlaybookの再実行だけでは完結しません。
 
 この検証環境では、`terraform apply`によってビルドとコンテナの再作成を手動で順に行いましたが、実際の運用でこのサイクルを人手で繰り返すのは現実的ではありません。イメージのビルド、レジストリへの登録、新しいイメージを使ったコンテナの再作成という一連の流れを自動化するには、CI/CDパイプラインの整備が前提になりやすくなります。
+
 ```
+【メリット】
+起動後にAnsibleが介入しないため、第42回のような設定消失は起きない
 
-【メリット】  
-起動後にAnsibleが介入しないため、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** のような設定消失は起きない
-
-【トレードオフ】  
-設定変更のたびにイメージの再ビルド、再デプロイが必要になる  
+【トレードオフ】
+設定変更のたびにイメージの再ビルド、再デプロイが必要になる
 　→ CI/CDパイプラインの整備が前提になる
-
 ```
 
-**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** ・**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** で扱った通り、この検証環境には既に`terraform output`を介した疎結合なパイプライン設計や、GitHub Actionsを用いたE2E自動化の土台があります。イミュータブル運用への転換は、これらの自動化の仕組みを前提にして初めて、日常的な設定変更のサイクルとして成立します。この転換は、**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** から **[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ってきた問題を回避する代わりに、ビルドサイクルという新しい運用コストを持ち込むものであり、問題そのものを消し去るわけではありません。
+**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** ・**[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** で扱った通り、この検証環境には既に`terraform output`を介した疎結合なパイプライン設計や、GitHub Actionsを用いたE2E自動化の土台があります。イミュータブル運用への転換は、これらの自動化の仕組みを前提にして初めて、日常的な設定変更のサイクルとして成立します。この転換は、**[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で扱った設定消失を回避する代わりに、ビルドサイクルという新しい運用コストを持ち込むものです。**[第44回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-44/)**・**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で扱ったデータの問題は引き続き残るため、問題そのものを消し去るわけではありません。
 
 次のセクションでは、この回で整理した内容をまとめます。
-
-
 
 ---
 
