@@ -21,6 +21,73 @@ relatedSeries: ''
 
 ---
 
+> **🔍 今起きている症状・課題から、読むべき回を探したい方はこちら**
+>
+> 全50回で扱った症状・課題を、部をまたいで1か所に集めた逆引きリファレンスがあります。
+> 症状・課題の一覧から原因の見当をつけ、該当する回のセクションまでたどれます。
+>
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」逆引きリファレンス：全50回の症状・課題を5つの図から引く](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)**
+
+---
+
+**※本記事の位置とシリーズ全体の関係を先に確認します。**
+
+---
+
+## 📍 本記事の位置
+
+```mermaid
+graph TD
+    Main["統合ブログ<br/>シリーズ全体のナビゲーション"]
+
+    subgraph Parts [各部のまとめブログ　全5本]
+        Part1["第1部まとめブログ<br/>環境構築、連携編"]
+        Part2["第2部まとめブログ<br/>運用、ライフサイクル編"]
+        Part3["第3部まとめブログ<br/>トラブルシューティング、デバッグ編"]
+        Part4["第4部まとめブログ<br/>改善、CI/CD自動化編"]
+        Part5["第5部まとめブログ<br/>Terraformライフサイクル破壊編"]
+    end
+
+    subgraph Articles [各回ブログ　全50本]
+        Part1_Detail["第1回〜第10回"]
+        Part2_Detail["第11回〜第20回"]
+        Part3_Detail["第21回〜第30回"]
+        Part4_Detail["第31回〜第40回"]
+        Part5_Detail["第41回〜第50回"]
+    end
+
+    Reverse["逆引きリファレンス<br/>全50回の症状・課題を集約"]
+
+    Main --- Part1
+    Main --- Part2
+    Main --- Part3
+    Main --- Part4
+    Main --- Part5
+
+    Part1 --- Part1_Detail
+    Part2 --- Part2_Detail
+    Part3 --- Part3_Detail
+    Part4 --- Part4_Detail
+    Part5 --- Part5_Detail
+
+    Part1_Detail --- Reverse
+    Part2_Detail --- Reverse
+    Part3_Detail --- Reverse
+    Part4_Detail --- Reverse
+    Part5_Detail --- Reverse
+
+    style Main fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    style Part2_Detail fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style Parts fill:none
+    style Articles fill:none
+```
+
+本シリーズは、**[統合ブログ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)**、第1〜5部のまとめブログ（全5本）、第1〜50回の各回ブログ（全50本）の3階層で構成されています。**現在はこの図の下段、第2部「第11回〜第20回」のうちの第19回になります。** 統合ブログとまとめブログは、シリーズを上から順に読み進めるための入口です。
+
+また、この3階層とは別に、**[逆引きリファレンス](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)** があります。第1〜50回の各回ブログで扱った症状・課題を、部をまたいで1か所に集め、今起きている症状や解決したい課題から、該当する回へ直接たどり着けるようにしたものです。
+
+---
+
 ## 📋 目次
 
 1. [はじめに](#1-はじめに)
@@ -595,6 +662,15 @@ Playbook全体をansible-playbookで実行する
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
 > → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第2部まとめブログ： TerraformとAnsibleの運用で直面する構成ズレと状態管理の問題](https://qiita.com/juehara-crypto/items/c3e95e3bec11e07bbe75)**
+
+---
+
+> **🔍 今起きている症状・課題から、読むべき回を探したい方はこちら**
+>
+> 全50回で扱った症状・課題を、部をまたいで1か所に集めた逆引きリファレンスがあります。
+> 症状・課題の一覧から原因の見当をつけ、該当する回のセクションまでたどれます。
+>
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」逆引きリファレンス：全50回の症状・課題を5つの図から引く](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)**
 
 ---
 
