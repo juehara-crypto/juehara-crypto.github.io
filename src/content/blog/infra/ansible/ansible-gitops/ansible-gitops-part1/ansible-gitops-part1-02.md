@@ -19,7 +19,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
@@ -55,7 +55,7 @@ AnsibleとTerraformの役割分担は、多くの記事で「Terraformで作っ�
 
 これらは、どちらのツールが何を担当するかは分かっているのに起きています。共通しているのは、変更がコミットされたときに、どちらのツールを、どの順序で動かす必要があるかが決まっていない点です。
 
-この役割分担は、「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）でも扱ってきました。Ansible×Terraformシリーズの **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** では、Terraformはインフラのリソースを宣言的に、AnsibleはOSの中を手続き的に管理するという役割分担を整理しました。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、`terraform plan`が検知できるのはtfstateに記録されたリソースの属性に限られ、`ansible-playbook --check --diff`が検知できるのはPlaybookが管理している範囲に限られることを確認しました。そのうえで、インフラ層とOS層の確認と同期は、二軸として両方行う必要があると整理しました。役割分担と確認の二軸そのものは、この回では再解説しません。
+この役割分担は、**[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** でも扱ってきました。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** では、Terraformはインフラのリソースを宣言的に、AnsibleはOSの中を手続き的に管理するという役割分担を整理しました。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、`terraform plan`が検知できるのはtfstateに記録されたリソースの属性に限られ、`ansible-playbook --check --diff`が検知できるのはPlaybookが管理している範囲に限られることを確認しました。そのうえで、インフラ層とOS層の確認と同期は、二軸として両方行う必要があると整理しました。役割分担と確認の二軸そのものは、この回では再解説しません。
 
 本シリーズの **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-01/)** では、「Gitが唯一の真実」が崩れる3つの経路を整理しました。そのうち、Gitを経由しない手動変更に対しては、変更の経路をGitに限定する仕組みを第2部（**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-05/)** 〜 **[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-12/)**）で作ります。ただし、経路をGitに限定するには、その前に、どの変更をGitのどこで行い、どのツールで反映するかが決まっている必要があります。この回では、その前提を整理します。
 
@@ -258,7 +258,7 @@ Changes to Outputs:
 
 target-node4のIPアドレスは`apply`の後に決まるため、インベントリの内容も`(known after apply)`になっています。テンプレートはすべてのコンテナを`[target_nodes]`グループに書き出し、`site.yml`はそのグループを対象にしているため、Playbookを変更しなくても、target-node4は作り直されたインベントリを通じてAnsibleの対象に入る構成です。
 
-一方、新しく作られるコンテナの中身は、イメージと、`main.tf`の定義（`upload`ブロック等）に書かれた内容だけで決まります。Ansible×Terraformシリーズの **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で整理したとおり、Playbookで配置する設定は`main.tf`の定義に書かれていないため、作成時のコンテナには入りません。その設定を入れるには、`terraform apply`の後にAnsibleを実行する必要があります。そのため、ノードの追加は両方にまたがる変更になります。
+一方、新しく作られるコンテナの中身は、イメージと、`main.tf`の定義（`upload`ブロック等）に書かれた内容だけで決まります。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** で整理したとおり、Playbookで配置する設定は`main.tf`の定義に書かれていないため、作成時のコンテナには入りません。その設定を入れるには、`terraform apply`の後にAnsibleを実行する必要があります。そのため、ノードの追加は両方にまたがる変更になります。
 
 なお、ロールをホストごとに割り当てる構成では、Playbookやインベントリのグループ定義の変更も必要になります。この検証環境では、グループ単位でロールを割り当てているため、変更は`main.tf`だけで済みます。
 
@@ -330,7 +330,7 @@ CMD ["/usr/sbin/sshd", "-D"]
 * イメージに焼き込むパッケージと、Ansibleで入れるパッケージ：パッケージを`Dockerfile`に書いてイメージに含めるか、コンテナの起動後にAnsibleでインストールするか
 * コンテナ内の待ち受けポートと、外部公開ポート：SSHサーバーがコンテナの中で待ち受けるポートは、SSHサーバーの設定ファイル（`sshd_config`の`Port`）で決まり、Ansibleで変更できる。外部に公開するポートと、その転送先となるコンテナ内のポートは、`main.tf`の`ports`ブロック（`external`、`internal`）で決まり、Terraformでしか設定できない
 
-3つ目は、どちらのツールでも書ける設定ではなく、1つの値が両方のツールにまたがる設定です。検証環境では、`Dockerfile`で待ち受けポートを変更していないため、SSHサーバーは既定の22番で待ち受け、`ports`の`internal = 22`と一致しています。ここで、Ansibleで`sshd_config`の`Port`だけを変えると、外部公開ポートの転送先の22番で待ち受けるサーバーがなくなり、外部から接続できなくなります。片方だけを変えると整合が崩れるという点で、同じ値を両方のツールで定義する二重管理と同じ構造です。二重管理は、Ansible×Terraformシリーズの **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** で、連携時の設計アンチパターンの1つとして整理しています。
+3つ目は、どちらのツールでも書ける設定ではなく、1つの値が両方のツールにまたがる設定です。検証環境では、`Dockerfile`で待ち受けポートを変更していないため、SSHサーバーは既定の22番で待ち受け、`ports`の`internal = 22`と一致しています。ここで、Ansibleで`sshd_config`の`Port`だけを変えると、外部公開ポートの転送先の22番で待ち受けるサーバーがなくなり、外部から接続できなくなります。片方だけを変えると整合が崩れるという点で、同じ値を両方のツールで定義する二重管理と同じ構造です。二重管理は、**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-01/)** で、連携時の設計アンチパターンの1つとして整理しています。
 
 ### 判定基準
 
@@ -590,7 +590,7 @@ outputs.tf
 
 IPアドレスは、コンテナを作成したときに、Dockerがネットワークの空いているアドレスから割り当てます。**[セクション2](#2-コミットされる変更の3分類)** のノード追加の`terraform plan`で、インベントリの内容が`(known after apply)`になっていたのはこのためです。**[セクション3](#3-どちらでも書ける設定の境界と判定基準)** の環境変数の追加でも、同じ理由でインベントリが再作成の対象になりました。値は`terraform apply`の後にしか決まらず、コミットの時点では書けません。
 
-また、この値は、Gitへの変更と関係なく変わります。Ansible×Terraformシリーズの **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、コンテナの作り直しでIPアドレスが変わると、古いインベントリのままAnsibleを実行した場合に、接続に失敗するか、意図しないホストに接続することを整理しました。仮に`inventory.ini`をGitにコミットしても、コンテナが作り直された時点で、Gitにある値は実際の接続先と食い違います。
+また、この値は、Gitへの変更と関係なく変わります。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、コンテナの作り直しでIPアドレスが変わると、古いインベントリのままAnsibleを実行した場合に、接続に失敗するか、意図しないホストに接続することを整理しました。仮に`inventory.ini`をGitにコミットしても、コンテナが作り直された時点で、Gitにある値は実際の接続先と食い違います。
 
 本シリーズの **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-01/)** では、「Gitが唯一の真実」と言えるのは、Gitに記述されている範囲の中だけだと整理しました。AnsibleとTerraformの接続面は、最初からこの範囲の外にあります。
 
@@ -614,7 +614,7 @@ IPアドレスは、コンテナを作成したときに、Dockerがネットワ
 
 **[セクション2](#2-コミットされる変更の3分類)** から **[セクション4](#4-ansibleとterraformの接続面はgitの外にある)** の結果をもとに、変更の種類ごとに、どのツールをどの順序で実行する必要があるかを整理します。
 
-実行順序の原則は、Ansible×Terraformシリーズの **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で整理しています。インフラ層とOS層の同期は、通常はどちらを先に実行してもよく、インフラ層の変更がAnsibleの適用対象（接続先、認証情報など）に影響する場合は、Terraformを先に実行する必要があります。判断に迷う場合は、Terraform→Ansibleの順序で統一しておくと、順序に起因する問題を避けやすくなります。
+実行順序の原則は、**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で整理しています。インフラ層とOS層の同期は、通常はどちらを先に実行してもよく、インフラ層の変更がAnsibleの適用対象（接続先、認証情報など）に影響する場合は、Terraformを先に実行する必要があります。判断に迷う場合は、Terraform→Ansibleの順序で統一しておくと、順序に起因する問題を避けやすくなります。
 
 **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** が扱ったのは、手動変更によるずれを確認し、同期する場面でした。この回で扱うのは、コミットされた変更を反映する場面です。この場面では、**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** の原則に、次の2点が加わります。
 
@@ -623,7 +623,7 @@ IPアドレスは、コンテナを作成したときに、Dockerがネットワ
 
 ### 再生成を伴う変更を分けて扱う理由
 
-**[セクション3](#3-どちらでも書ける設定の境界と判定基準)** で確認したとおり、環境変数の追加は、`main.tf`だけを変える変更でありながら、コンテナの作り直し（`must be replaced`）を伴います。Ansible×Terraformシリーズの **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** では、作り直したコンテナから、Ansibleで配置したファイルとインストールしたパッケージが、どちらも失われることを確認しました。`terraform apply`はエラーも警告も出さずに完了するため、Terraformの実行結果だけでは、この消失に気づけません。
+**[セクション3](#3-どちらでも書ける設定の境界と判定基準)** で確認したとおり、環境変数の追加は、`main.tf`だけを変える変更でありながら、コンテナの作り直し（`must be replaced`）を伴います。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第42回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-42/)** では、作り直したコンテナから、Ansibleで配置したファイルとインストールしたパッケージが、どちらも失われることを確認しました。`terraform apply`はエラーも警告も出さずに完了するため、Terraformの実行結果だけでは、この消失に気づけません。
 
 作り直したコンテナは、イメージと`main.tf`の定義に書かれた内容だけを持った状態で作られます。そのため、Ansibleの実行は、今回の変更に関係するタスクだけでは足りず、Playbookのすべてのタスクで設定を入れ直す必要があります。変更の内容はTerraformの1つの属性でも、Ansible側では、新しいノードを追加したときと同じだけの作業が必要になります。
 
@@ -738,7 +738,7 @@ Dockerの構成要素とAWS・GCPのリソースの対応は、本シリーズ�
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
