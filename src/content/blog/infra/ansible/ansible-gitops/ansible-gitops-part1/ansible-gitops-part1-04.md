@@ -18,7 +18,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
@@ -57,7 +57,7 @@ GitHub Actionsを扱う記事の多くは、GitHubが用意する実行環境（
 
 これらは、ネットワークの設定や社内の規定の問題に見えます。共通しているのは、パイプラインが動く場所から操作対象に届くか、そして何をどこに預けることになるかが、ホスティング先と実行場所を選ぶ時点で決まっていない点です。
 
-パイプラインの実行場所は、「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）でも扱ってきました。Ansible×Terraformシリーズの **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、GitHub Actionsのワークフローで、Terraformによるコンテナの起動からAnsibleの適用、定期的なドリフトの検知までを実行しました。ただし、実行のたびに使い捨てられるホステッドランナーでは、常時起動しているインフラを外から監視できません。そのため、**[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** の定期検知は、コンテナの起動から改ざんの注入、検知までを、1回のワークフロー実行の中で完結させる構成でした。
+パイプラインの実行場所は、**[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** でも扱ってきました。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、GitHub Actionsのワークフローで、Terraformによるコンテナの起動からAnsibleの適用、定期的なドリフトの検知までを実行しました。ただし、実行のたびに使い捨てられるホステッドランナーでは、常時起動しているインフラを外から監視できません。そのため、**[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** の定期検知は、コンテナの起動から改ざんの注入、検知までを、1回のワークフロー実行の中で完結させる構成でした。
 
 本シリーズの **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-01/)** のセクション5では、この構成を振り返ったうえで、管理対象と同じネットワーク内に置くself-hostedランナーを採用し、稼働し続けるインフラに対する定期検知と自動収束を第4部で作ると整理しました。**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-03/)** では、変更の分類をパスで表現するリポジトリの構造と、mainを唯一の真実とするブランチ運用を設計しました。同じ回で、リポジトリを非公開で運用することを前提にしましたが、その理由はまだ示していません。
 
@@ -278,7 +278,7 @@ Git基盤（Gitea、GitLabなど）　→　CIのランナー　→（SSH）→�
 （すべてプライベートなネットワーク）
 ```
 
-構成1は、操作対象をランナーの中に作ることで、ランナーと操作対象を同じ場所に置く構成です。Ansible×Terraformシリーズの **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で、コンテナの起動からAnsibleの適用までを1回のワークフロー実行の中で行ったのが、この構成です。届くことは保証されますが、操作対象はランナーとともに実行のたびに作り直されます。この点は、**[セクション4](#4-状態の永続性とドリフト観測)** で扱います。
+構成1は、操作対象をランナーの中に作ることで、ランナーと操作対象を同じ場所に置く構成です。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で、コンテナの起動からAnsibleの適用までを1回のワークフロー実行の中で行ったのが、この構成です。届くことは保証されますが、操作対象はランナーとともに実行のたびに作り直されます。この点は、**[セクション4](#4-状態の永続性とドリフト観測)** で扱います。
 
 構成2は、GitHubはそのまま使い、ジョブを実行するランナーだけを、操作対象と同じネットワークに置く構成です。GitHubの公式ドキュメント（**[Self-hosted runners reference](https://docs.github.com/en/actions/reference/runners/self-hosted-runners)**）では、self-hostedランナーは、GitHubに接続してジョブの割り当てを受け取るとされています。通信の要件として挙げられているのは、ランナーを置くホストから外向きにHTTPS（443番）で接続できることで、外からランナーに接続するためにポートを開ける要件は挙げられていません。
 
@@ -408,7 +408,7 @@ self-hostedランナーは、操作対象と同じホストで動き、操作対
 
 構成1では、操作対象をランナーの中に作ります。**[セクション2](#2-パイプラインはどこで実行されるのか)** で引用した公式ドキュメントのとおり、ホステッドランナーはジョブごとに新しく用意される仮想マシンなので、その中に作った操作対象も、実行が終わるとランナーとともになくなります。次の実行では、コードから操作対象を作り直すところから始まります。
 
-このため、構成1では、「前回の実行の後に、操作対象に何が起きたか」を観測できません。前回の実行の後に手動変更があったとしても、その変更が加えられた操作対象は、次の実行の時点ではもう存在しないからです。Ansible×Terraformシリーズの **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** の定期検知が、コンテナの起動から改ざんの注入、検知までを1回のワークフロー実行の中で完結させる構成だったのは、このためです。
+このため、構成1では、「前回の実行の後に、操作対象に何が起きたか」を観測できません。前回の実行の後に手動変更があったとしても、その変更が加えられた操作対象は、次の実行の時点ではもう存在しないからです。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** の定期検知が、コンテナの起動から改ざんの注入、検知までを1回のワークフロー実行の中で完結させる構成だったのは、このためです。
 
 また、構成1で検証しているのは、ランナーの中に作った操作対象であり、実際に運用している操作対象ではありません。**[セクション1](#1-はじめに)** で挙げた「ランナーの中で作ったコンテナでは検証が通るのに、実際のサーバーには届かない」という場面は、この違いから生まれます。
 
@@ -1107,7 +1107,7 @@ Terraformが動いていることは、パイプラインが操作対象に届�
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
