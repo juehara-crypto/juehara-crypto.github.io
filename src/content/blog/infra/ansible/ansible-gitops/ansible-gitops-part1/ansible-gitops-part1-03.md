@@ -18,7 +18,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
@@ -59,7 +59,7 @@ AnsibleのPlaybookとTerraformのコードをGitで管理していて、
 
 本シリーズの **[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-02/)** では、コミットされる変更を、Terraformだけで完結する変更、Ansibleだけで完結する変更、両方にまたがる変更の3つに分類し、変更の種類ごとに必要な実行の順序を整理しました。同じ回で、どのツールの実行が必要になるかは変更したファイルからは決まらず、`terraform plan`の結果から見分けられることも確認しました。また、AnsibleとTerraformの接続面であるIPアドレスはtfstateと、そこから生成したインベントリにあり、Gitで管理するのは値ではなく値の生成手順であることを確認しました。**[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-01/)** では、Gitを経由しない手動変更に対し、変更の経路をGitに限定し、Gitを通った変更だけが適用される仕組みを第2部（**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-05/)** 〜 **[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-12/)**）で作ると整理しました。
 
-リポジトリの構造そのものは、「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）でも部分的に扱ってきました。Ansible×Terraformシリーズの **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、`.github/workflows/`にワークフローを置き、Terraformによるコンテナの起動からAnsibleの適用、定期的なドリフトの検知までを、GitHub Actionsで実行しました。**[第35回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-35/)** では、TerraformのモジュールとAnsibleのロールで共通部分を1か所にまとめ、共通化によって「誰が共通部分を変更してよいか」という運用ルールが必要になることを、課題の所在として示すにとどめました。モジュールやロールの内部の構成は、この回では再解説しません。
+リポジトリの構造そのものは、**[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** でも部分的に扱ってきました。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第32回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-32/)** と **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、`.github/workflows/`にワークフローを置き、Terraformによるコンテナの起動からAnsibleの適用、定期的なドリフトの検知までを、GitHub Actionsで実行しました。**[第35回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-35/)** では、TerraformのモジュールとAnsibleのロールで共通部分を1か所にまとめ、共通化によって「誰が共通部分を変更してよいか」という運用ルールが必要になることを、課題の所在として示すにとどめました。モジュールやロールの内部の構成は、この回では再解説しません。
 
 この回では、**[第2回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-02/)** の変更の分類を、リポジトリのディレクトリ構成、Gitに置くものと置かないもの、リポジトリの分け方、ブランチの運用に落とし込みます。変更されたファイルだけでは実行するツールが決まらない以上、ディレクトリ構成で決められるのは、どのツールの判定から始めるかです。Ansibleだけに関わるパスの変更であれば、Terraformの判定は要りません。Terraformのパスを含む変更であれば、まず`terraform plan`を実行し、その結果からAnsibleの実行が必要かを決めます。
 
@@ -113,7 +113,7 @@ AnsibleのPlaybookとTerraformのコードをGitで管理していて、
 
 この対応は、`terraform/`配下のファイルをAnsibleが読まず、`ansible/`配下のファイルをTerraformが読まない場合に限って成り立ちます。
 
-たとえば、Terraformのリソース定義からPlaybookのファイルを参照すると、Playbookの変更が`terraform plan`に現れるようになります。Ansible×Terraformシリーズの **[第33回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-33/)** で扱った、`null_resource`の`triggers`にPlaybookのハッシュ値を指定する構成がこれに当たります。この構成では、`ansible/`配下だけの変更でも、Terraformの判定が必要になります。ディレクトリを分けるだけでなく、ツールをまたいでファイルを参照しないことも、パスから判定の入口を決めるための条件になります。
+たとえば、Terraformのリソース定義からPlaybookのファイルを参照すると、Playbookの変更が`terraform plan`に現れるようになります。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第33回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-33/)** で扱った、`null_resource`の`triggers`にPlaybookのハッシュ値を指定する構成がこれに当たります。この構成では、`ansible/`配下だけの変更でも、Terraformの判定が必要になります。ディレクトリを分けるだけでなく、ツールをまたいでファイルを参照しないことも、パスから判定の入口を決めるための条件になります。
 
 `.github/workflows/`配下は、パイプラインそのものの定義です。変更されたパスに応じてジョブを切り替える仕組みは、この表を入力として **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-05/)** で実装します。`terraform plan`の結果から作り直しや削除を読み取り、Ansibleの設定の消失を適用前に扱う仕組みは、**[第9回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part2/ansible-gitops-part2-09/)** で扱います。
 
@@ -318,7 +318,7 @@ AnsibleとTerraformのコードを1つのリポジトリに置く構成（モノ
 
 ### 変更できる人を分ける必要があるか
 
-Ansible×Terraformシリーズの **[第35回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-35/)** のセクション7では、共通化によって、誰が共通部分を変更してよいかという運用ルールが必要になることを、課題の所在として示しました。インフラのリソースを変更できる人と、OSの中の設定を変更できる人を分けたい場合、リポジトリの構成が関わってきます。
+**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第35回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-35/)** のセクション7では、共通化によって、誰が共通部分を変更してよいかという運用ルールが必要になることを、課題の所在として示しました。インフラのリソースを変更できる人と、OSの中の設定を変更できる人を分けたい場合、リポジトリの構成が関わってきます。
 
 マルチリポであれば、リポジトリごとに、誰をコラボレーターとして招待するかで、変更できる人を分けられます（**[Inviting collaborators to a personal repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/repository-access-and-collaboration/inviting-collaborators-to-a-personal-repository)**）。
 
@@ -658,7 +658,7 @@ cat -n .ansible-lint
 |Gitに置かないものの境界|ルートの`.gitignore`|**[セクション3](#3-gitに置くものと置かないもの)** で追加した`.gitignore`（設計と同じ）|
 |どちらのツールも読まないファイル|（セクション2のツリーにない）|`test_target_node1.py`|
 
-`test_target_node1.py`は、Ansible×Terraformシリーズの **[第34回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-34/)** で扱ったTestinfraのテストで、TerraformもAnsibleも読みません。
+`test_target_node1.py`は、**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第34回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-34/)** で扱ったTestinfraのテストで、TerraformもAnsibleも読みません。
 
 パイプラインの定義と`.gitignore`は、設計どおりの場所にあります。差分は、TerraformとAnsibleのファイルが分かれずに、同じルートに置かれていることです。
 
@@ -785,7 +785,7 @@ AWSやGCPに切り替えたときに書き換えるのは、`terraform/`の中�
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
