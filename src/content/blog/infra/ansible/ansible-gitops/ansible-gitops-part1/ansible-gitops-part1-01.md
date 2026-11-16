@@ -19,7 +19,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
@@ -58,13 +58,13 @@ GitOpsという言葉はKubernetesの文脈で広まり、解説記事の多く�
 
 これらは別々の問題に見えますが、いずれも「Gitに書かれた内容」と「実際のインフラの状態」が一致しているとは限らない、という点で共通しています。
 
-このずれは、前シリーズ「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）でも扱ってきました。第4部（**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** 〜 **[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)**）では、GitHub ActionsでCI/CDのパイプラインを組み、定期実行によるドリフトの検知と自動収束までを自動化しました。**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** では、手動実行から自動収束までの改善を段階的に整理したうえで、自動収束まで到達しても、AnsibleとTerraformがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは残ることを確認しました。**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** では、tfstateがコンテナ内部のOSレイヤーを、そもそも観測対象に含めていないことを確認しました。
+このずれは、前シリーズ **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」（以下、Ansible×Terraformシリーズ）](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** でも扱ってきました。第4部（**[第31回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-31/)** 〜 **[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)**）では、GitHub ActionsでCI/CDのパイプラインを組み、定期実行によるドリフトの検知と自動収束までを自動化しました。**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** では、手動実行から自動収束までの改善を段階的に整理したうえで、自動収束まで到達しても、AnsibleとTerraformがそれぞれ自分の管理範囲しか見ていないという構造上のギャップは残ることを確認しました。**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** では、tfstateがコンテナ内部のOSレイヤーを、そもそも観測対象に含めていないことを確認しました。
 
-つまり、Ansible×Terraformシリーズを終えた時点で、インフラの状態を示すものは、実際の状態、tfstate、Playbookの3つに分かれたままです。tfstateはTerraformが管理するリソースの属性について、PlaybookはAnsibleが投入する内部の設定について、実際の状態は現在動いているインフラそのものについて、それぞれ別々の「真実」を持っています。
+つまり、**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** を終えた時点で、インフラの状態を示すものは、実際の状態、tfstate、Playbookの3つに分かれたままです。tfstateはTerraformが管理するリソースの属性について、PlaybookはAnsibleが投入する内部の設定について、実際の状態は現在動いているインフラそのものについて、それぞれ別々の「真実」を持っています。
 
 本シリーズ「Ansible×TerraformをGitOpsで回す」は、この3つに分かれた真実の基準をGitに置き、そこからのずれを検知して収束させる仕組みを、GitOpsの考え方に沿って組み立てていくシリーズです。検証環境ではTerraformのDockerプロバイダーを使いますが、扱う問題はDocker固有のものではなく、AWSやGCPなど他のプロバイダーでも同じ構造で起こります。各回では、どこをプロバイダー固有の記述に置き換えればクラウド環境に当てはまるかも、あわせて示します。
 
-なお、このシリーズは、**[「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**（以下、冪等性シリーズ）、**[「Ansibleは冪等なのに、なぜサーバは壊れていくのか」](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**（以下、ドリフトシリーズ）、**[「AnsibleのPlaybookが壊れる理由はテスト文化にあった」](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)**（以下、Moleculeシリーズ）、そしてAnsible×Terraformシリーズと内容的なつながりがあります。これらのシリーズが、Playbookの設計、Ansibleが実行されていない時間に起きるずれ、変更のたびに確認し続ける仕組み、複数ツールの連携で起きる問題をそれぞれ扱ったのに対し、本シリーズは、それらの変更をすべてGitに通し、CIで検証して適用する仕組みを扱います。これらのシリーズを読まれた方には答え合わせとして、初めて読まれる方には入り口として、読み進めていただける構成にしています。
+なお、このシリーズは、**[「Ansibleは本当に冪等なのか」〜冪等性が崩れる構造と設計〜](https://qiita.com/juehara-crypto/items/d77fa93e82ea4a33ef4f)**（以下、冪等性シリーズ）、**[「Ansibleは冪等なのに、なぜサーバは壊れていくのか」](https://qiita.com/juehara-crypto/items/2a375a2c0fca3a8df0ca)**（以下、ドリフトシリーズ）、**[「AnsibleのPlaybookが壊れる理由はテスト文化にあった」](https://qiita.com/juehara-crypto/items/194d5730466aef04ed44)**（以下、Moleculeシリーズ）、そして **[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** と内容的なつながりがあります。これらのシリーズが、Playbookの設計、Ansibleが実行されていない時間に起きるずれ、変更のたびに確認し続ける仕組み、複数ツールの連携で起きる問題をそれぞれ扱ったのに対し、本シリーズは、それらの変更をすべてGitに通し、CIで検証して適用する仕組みを扱います。これらのシリーズを読まれた方には答え合わせとして、初めて読まれる方には入り口として、読み進めていただける構成にしています。
 
 第1回となる今回は、シリーズの起点として、GitOpsの原則を評価軸に、AnsibleとTerraformがそれぞれどこまでGitOpsの条件を満たしているのかを整理します。
 
@@ -123,7 +123,7 @@ GitOpsの原則は、GitOps Working Groupが監修するOpenGitOpsが、**[GitOp
 
 Terraformは、HCLで「どのリソースが、どの属性で存在すべきか」を宣言し、`terraform apply`でその状態に合わせます。適用した結果はtfstateに記録されます。`terraform plan`は、HCLの定義、tfstate、プロバイダーのAPIから取得した現在の属性を比較して、差分を計算します。あるべき状態を宣言として書き、現在の状態との差分を自ら計算できる点で、Terraformは宣言型のツールです。
 
-ただし、この比較が及ぶのはリソースの属性までです。Ansible×Terraformシリーズの **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** では、`terraform show`でtfstateの中身を確認しました。記録されているのは、イメージ、ポート、ネットワークといったリソースの属性であり、コンテナ内部のファイルやパッケージの状態を示す項目は存在しませんでした。同じ回では、コンテナ内部にファイルを作成しても`terraform plan`は「No changes」となる一方、`restart`のようなリソースの属性を変更した場合は差分として検出されることも確認しています。Terraformの宣言は、リソースの属性という範囲の中で成り立っています。
+ただし、この比較が及ぶのはリソースの属性までです。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** では、`terraform show`でtfstateの中身を確認しました。記録されているのは、イメージ、ポート、ネットワークといったリソースの属性であり、コンテナ内部のファイルやパッケージの状態を示す項目は存在しませんでした。同じ回では、コンテナ内部にファイルを作成しても`terraform plan`は「No changes」となる一方、`restart`のようなリソースの属性を変更した場合は差分として検出されることも確認しています。Terraformの宣言は、リソースの属性という範囲の中で成り立っています。
 
 4原則との対応を整理すると、次のとおりです。
 
@@ -227,7 +227,7 @@ push型とpull型を、4原則に沿って並べると次のとおりです。
 
 原則3について、push型は、エージェントが自ら取得するという形を満たしません。本シリーズでは、Gitへの変更（マージ）をきっかけにCIが適用する仕組みを作ることで、人が実行を指示しなくてもGitの内容が反映される状態を目指します。
 
-原則4について、push型のCIは、実行が終わると観測を止めます。そのため、継続的な観測は、定期実行による検知と収束で近づけるしかありません。定期実行である以上、実行と実行の間には観測されない期間が残ります。Ansible×Terraformシリーズの **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、`ansible-playbook --check`の定期実行による検知と自動収束を作りました。ただし、実行のたびに使い捨てられるGitHubのホステッドランナーでは、常時起動しているインフラを外から監視できません。そのため、コンテナの起動から改ざんの注入、検知までを、1回のワークフロー実行の中で完結させる構成でした。本シリーズでは、管理対象と同じネットワーク内に置くself-hostedランナーを **[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-04/)** で採用し、稼働し続けるインフラに対する定期検知と自動収束を、第4部（**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part4/ansible-gitops-part4-17/)** 〜 **[第21回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part4/ansible-gitops-part4-21/)**）で作ります。
+原則4について、push型のCIは、実行が終わると観測を止めます。そのため、継続的な観測は、定期実行による検知と収束で近づけるしかありません。定期実行である以上、実行と実行の間には観測されない期間が残ります。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** では、`ansible-playbook --check`の定期実行による検知と自動収束を作りました。ただし、実行のたびに使い捨てられるGitHubのホステッドランナーでは、常時起動しているインフラを外から監視できません。そのため、コンテナの起動から改ざんの注入、検知までを、1回のワークフロー実行の中で完結させる構成でした。本シリーズでは、管理対象と同じネットワーク内に置くself-hostedランナーを **[第4回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part1/ansible-gitops-part1-04/)** で採用し、稼働し続けるインフラに対する定期検知と自動収束を、第4部（**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part4/ansible-gitops-part4-17/)** 〜 **[第21回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-gitops/ansible-gitops-part4/ansible-gitops-part4-21/)**）で作ります。
 
 本シリーズの立ち位置は、「push型の構成で、GitOpsの4原則をどこまで満たせるか」を確かめることです。原則3は目的を代わりに満たし、原則4は自前の仕組みで近づけます。そのうえで、push型では埋めきれない部分がどこに残るかも、あわせて示していきます。Argo CDやFluxの導入や使い方は、本シリーズでは扱いません。
 
@@ -264,7 +264,7 @@ push型とpull型を、4原則に沿って並べると次のとおりです。
     content: "monitored_by=ansible-drift-check\n"
 ```
 
-なお、手動変更を`terraform plan`が検出しないこと、`ansible-playbook --check` が検出することは、Ansible×Terraformシリーズの  **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で確認しています。ここで確認したいのは、同じ1つの変更に対して、Gitを含む3者の結果を並べたときに何が見えるかです。
+なお、手動変更を`terraform plan`が検出しないこと、`ansible-playbook --check` が検出することは、**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の  **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で確認しています。ここで確認したいのは、同じ1つの変更に対して、Gitを含む3者の結果を並べたときに何が見えるかです。
 
 ### ■ 検証内容：Playbookが管理しているファイルの手動変更
 
@@ -565,7 +565,7 @@ GitにもtfstateにもPlaybookにも記述されていないものは、どの�
 収束処理が走り、あるべき状態に戻る
 ```
 
-Ansible×Terraformシリーズの **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で作った定期検知は、1時間ごとに`ansible-playbook --check`を実行する構成でした。定期実行にしても、実行と実行の間には、ずれが観測されない期間が残ります。また、定期実行そのものが止まっていれば、この期間は際限なく延びます。経路③は、検出できるずれであっても、検出と収束の処理が走らない間はGitと実際の状態が食い違ったままになる、という経路です。
+**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第37回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-37/)** で作った定期検知は、1時間ごとに`ansible-playbook --check`を実行する構成でした。定期実行にしても、実行と実行の間には、ずれが観測されない期間が残ります。また、定期実行そのものが止まっていれば、この期間は際限なく延びます。経路③は、検出できるずれであっても、検出と収束の処理が走らない間はGitと実際の状態が食い違ったままになる、という経路です。
 
 次のセクションでは、この3つの経路が、本シリーズのどの部で扱われるのかを整理します。
 
@@ -688,7 +688,7 @@ Ansible　　→ 管理対象に接続し、タスクに書かれた項目だけ
 * ② tfstateの観測範囲外で起きる変化：仮想マシンの中のファイルの変更は、`terraform plan`では検出されない
 * ③ 収束処理が走らない期間の放置：クラウドであっても、検知と収束の処理が走らない間は、ずれは残り続ける
 
-ただし、クラウドの管理コンソールなどからインスタンスの属性そのもの（インスタンスタイプやタグなど）を変更した場合は、tfstateの観測範囲の中の変化になるため、`terraform plan`で差分として検出されます。Ansible×Terraformシリーズの **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で、コンテナの`restart`属性の変更が検出されたのと同じ構造です。検出できるかどうかを分けるのは、プロバイダーの種類ではなく、変更がリソースの属性の範囲にあるか、OSの中にあるかです。
+ただし、クラウドの管理コンソールなどからインスタンスの属性そのもの（インスタンスタイプやタグなど）を変更した場合は、tfstateの観測範囲の中の変化になるため、`terraform plan`で差分として検出されます。**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** の **[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で、コンテナの`restart`属性の変更が検出されたのと同じ構造です。検出できるかどうかを分けるのは、プロバイダーの種類ではなく、変更がリソースの属性の範囲にあるか、OSの中にあるかです。
 
 Terraformがインスタンスの属性を管理し、AnsibleがOSの中を設定するという役割分担である限り、プロバイダーがDocker、AWS、GCPのどれであっても、「Gitが唯一の真実」が崩れる構造は同じです。
 
@@ -721,7 +721,7 @@ Terraformがインスタンスの属性を管理し、AnsibleがOSの中を設�
 
 ## 10. 次回予告
 
-Ansible×Terraformシリーズでは、GitHub Actionsによるドリフトの検知と自動収束までを自動化したうえで、**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** ・**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で、AnsibleとTerraformがそれぞれ自分の管理範囲しか見ていないというギャップが残ることを確認しました。第1回となる今回は、本シリーズの起点として、GitOpsの4原則を評価軸に、AnsibleとTerraformがそれぞれどの原則を満たし、どの原則を満たさないのかを整理しました。そのうえで、push型の構成という本シリーズの立ち位置を示し、「Gitが唯一の真実」が崩れる3つの経路を整理しました。3つのうち、Gitを経由しない手動変更とtfstateの観測範囲外の変化の2つは、実機で確認しました。最後に、3つの経路と本シリーズの各部の対応を示しました。
+**[Ansible×Terraformシリーズ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)** では、GitHub Actionsによるドリフトの検知と自動収束までを自動化したうえで、**[第40回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part4/ansible-terraform-part4-40/)** ・**[第41回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-41/)** で、AnsibleとTerraformがそれぞれ自分の管理範囲しか見ていないというギャップが残ることを確認しました。第1回となる今回は、本シリーズの起点として、GitOpsの4原則を評価軸に、AnsibleとTerraformがそれぞれどの原則を満たし、どの原則を満たさないのかを整理しました。そのうえで、push型の構成という本シリーズの立ち位置を示し、「Gitが唯一の真実」が崩れる3つの経路を整理しました。3つのうち、Gitを経由しない手動変更とtfstateの観測範囲外の変化の2つは、実機で確認しました。最後に、3つの経路と本シリーズの各部の対応を示しました。
 
 次回は、AnsibleとTerraformの責務分担を、GitOpsの文脈で捉え直します。責務分担を「変更の種類ごとに必要な実行」として整理し、変更の3分類、境界が曖昧な設定の判定基準、Gitの外にある接続面を扱います。
 
@@ -737,7 +737,7 @@ Ansible×Terraformシリーズでは、GitHub Actionsによるドリフトの検
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第1部まとめブログ：「Gitが唯一の真実」を成り立たせる前提の設計](https://qiita.com/juehara-crypto/items/e459c37a9542aff4d349)**
 
 ---
 
