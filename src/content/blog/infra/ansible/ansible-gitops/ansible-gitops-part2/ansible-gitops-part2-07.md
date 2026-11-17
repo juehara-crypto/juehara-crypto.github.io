@@ -23,6 +23,52 @@ relatedSeries: ''
 
 ---
 
+
+**※本記事の位置とシリーズ全体の関係を先に確認します。**
+
+---
+
+## 📍 本記事の位置
+
+```mermaid
+graph TD
+    Main["統合ブログ<br/>シリーズ全体の<br/>ナビゲーション"]
+
+    subgraph Parts [まとめブログ　全4本]
+        Part1["第1部まとめブログ<br/>GitOpsの基本概念と<br/>Ansibleとの接続"]
+        Part2["第2部まとめブログ<br/>GitHub Actionsによる<br/>自動化パイプライン"]
+        Part3["第3部まとめブログ<br/>GitOpsパイプラインでの<br/>機密情報管理"]
+        Part4["第4部まとめブログ<br/>ドリフト検知と<br/>自動収束"]
+    end
+
+    subgraph Articles [各回ブログ　全21本]
+        Part1_Detail["第1回〜第4回"]
+        Part2_Detail["第5回〜第12回"]
+        Part3_Detail["第13回〜第16回"]
+        Part4_Detail["第17回〜第21回"]
+    end
+
+    Main --- Part1
+    Main --- Part2
+    Main --- Part3
+    Main --- Part4
+
+    Part1 --- Part1_Detail
+    Part2 --- Part2_Detail
+    Part3 --- Part3_Detail
+    Part4 --- Part4_Detail
+
+    style Main fill:#e1f5fe,stroke:#01579b,stroke-width:3px,font-size:18px
+    style Part2_Detail fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style Parts fill:none
+    style Articles fill:none
+```
+
+本シリーズは、統合ブログ、第1〜4部のまとめブログ（全4本）、第1〜21回の各回ブログ（全21本）の3階層で構成されています。**現在はこの図の下段、「第5回〜第12回」の第7回（本記事）になります。** 統合ブログとまとめブログは、シリーズを上から順に読み進めるための入口です。
+
+---
+
+
 ## 📋 目次
 
 1. [はじめに](#1-はじめに)
