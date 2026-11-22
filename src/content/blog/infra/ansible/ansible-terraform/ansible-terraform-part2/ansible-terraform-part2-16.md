@@ -108,13 +108,13 @@ graph TD
 
 「最初は問題なく動いていたはずの構成が、運用を続けるうちに突然エラーを起こすようになった」という経験はないでしょうか。
 
-**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** では、Terraformを管理するエンジニアとAnsibleを実行するオペレーターが分業する体制において、tfstateという共有リソースへの同時操作が競合を引き起こす構造を整理しました。この問題の発生源は、複数人が同じタイミングで操作を行うという、人的な要因にありました。
+**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** では、複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消えること、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まることを確認しました。この問題の発生源は、複数人がtfstateを扱うことにありました。
 
-今回扱うのは、これとは性質の異なる問題です。誰も手を加えていないにもかかわらず、時間の経過そのものによって環境が変化し、Terraformの定義やAnsibleのPlaybookが前提としていた状態との間に矛盾が生じるケースを扱います。
+今回扱うのは、これとは性質の異なる問題です。TerraformのコードもAnsibleのPlaybookも変えていないのに、リソースの起動後にOS内部のパッケージが更新されていくことで、Playbookが前提としていた状態との間に矛盾が生じるケースを扱います。
 
 具体的には、次のような場面です。
 
-* コンテナやVMの内部で`apt update`を実行し、OSのパッケージを最新化した
+* コンテナやVMの内部で`apt update`、`apt upgrade`を実行し、OSのパッケージを最新化した
 * セキュリティパッチの適用として、日常的な運用の一環で行っただけのつもりだった
 * ところが、その後にAnsible Playbookを実行すると、以前は成功していたはずのタスクが失敗するようになった
 
@@ -335,7 +335,7 @@ Ansibleの`template`モジュールで設定ファイルを生成する構成を
 ```plaintext
 Ansibleのtemplateが生成する設定ファイル：記述形式Aのまま（テンプレート側は更新されていない）
 　↓
-apt updateによりミドルウェアが新バージョンへ上がる
+apt update／apt upgradeによりミドルウェアが新バージョンへ上がる
 　↓
 新バージョンのミドルウェアは記述形式Aを解釈できない、または一部の設定項目を無視する
 　↓
@@ -407,17 +407,17 @@ resource "docker_container" "example" {
 
 ```hcl
 resource "docker_container" "example" {
-  image = "ubuntu:22.04"  # 検証済みバージョンを固定
+  image = "ubuntu:22.04"  # バージョンタグで指定（latestよりは変化が抑えられる）
 }
 ```
 
-`ubuntu:22.04`のように具体的なバージョンタグを指定すれば、`terraform apply`を何度実行しても、参照するイメージの内容は変わりません。イメージの中身をいつ、どのタイミングで更新するかを、コードの変更という明示的な操作を通じてコントロールできるようになります。
+`ubuntu:22.04`のように具体的なバージョンタグを指定すると、`latest`よりは参照先の変化が抑えられます。ただしタグ自体も、レジストリ側でイメージが作り直されると、指す実体が変わり得ます。内容まで固定するには、`ubuntu@sha256:<ダイジェスト値>`のようにダイジェストで指定します。ダイジェストで指定すれば、イメージの内容をいつ、どのタイミングで更新するかを、コードの変更という明示的な操作を通じてコントロールできるようになります。
 
-本検証環境の`docker_image.ansible_target`は、`Dockerfile`の`FROM ubuntu:22.04`という記述によって、すでにこの固定の考え方に沿った構成になっています。ベースイメージのタグを具体的に指定しているため、`docker_image`リソースが参照するイメージの内容は、`Dockerfile`自体を変更しない限り一定に保たれます。
+本検証環境の`docker_image.ansible_target`は、`Dockerfile`の`FROM ubuntu:22.04`という記述で、ベースイメージをバージョンタグで指定しています。これはダイジェストによる固定ではないため、再ビルドした時点のタグの実体が取り込まれます。一方、`docker_image`リソースは`Dockerfile`の中身の変更を自動検知しないため、再ビルドを明示的に行わない限り、既存のイメージは変わりません。
 
-固定するかどうかを判断する基準は、単純な安定性の話にとどまりません。**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** で整理した通り、コンテナイメージの変更は`force_new_resource`を引き起こす属性のひとつです。イメージのタグを固定せずに`latest`のような可変参照にしていると、意図しないタイミングでイメージの実体が変わり、それに気づかないまま`terraform apply`を実行した際に、リソースの破棄、再生成とAnsible設定の消失が連鎖する可能性があります。イメージの固定は、今回のテーマであるバージョン変化の抑制だけでなく、この意図しない再生成を防ぐという意味も持っています。
+固定するかどうかを判断する基準は、単純な安定性の話にとどまりません。**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** で整理した通り、属性の変更が`terraform plan`で`forces replacement`と表示されると、リソースは破棄、再生成されます。第13回で実機で確認したのはポートマッピング、環境変数、ラベルの変更で、コンテナイメージの変更が再生成を引き起こすかどうかは、第13回でも第16回でも確認していません。もし再生成の対象であれば、イメージのタグを固定せずに`latest`のような可変参照にしていると、意図しないタイミングでイメージの実体が変わり、それに気づかないまま`terraform apply`を実行した際に、リソースの破棄、再生成とAnsible設定の消失が連鎖します。イメージの固定は、今回のテーマであるバージョン変化の抑制だけでなく、この意図しない再生成を防ぐことにもつながり得ます。
 
-この考え方は、Docker環境に限った話ではありません。AWSであればAMI IDを固定値で指定する、GCPであればイメージファミリーではなく特定のイメージバージョンを指定するといった形で、同じ目的の設計がクラウド環境でも使われます。「起動元イメージのバージョンを、コードの変更なしには変わらない形で固定する」という発想そのものが、プロバイダーを問わず共通する設計パターンです。
+この考え方は、Docker環境に限った話ではありません。AWSであればAMI IDを固定値で指定する、GCPであればイメージファミリーではなく特定のイメージバージョンを指定するといった形で、同じ目的の設計がクラウド環境でも使われます。「起動元イメージの指定を、コードの変更なしには変わらない形にする」という発想そのものが、プロバイダーを問わず共通する設計パターンです。
 
 ただし、ここで固定できるのは、あくまでリソースが起動する瞬間のイメージの中身です。**[セクション2](#2-terraformのイメージ定義とos内部状態の分離)** で整理した通り、起動後にOS内部で進行する`apt update`のようなパッケージ更新までは、この固定の対象に含まれません。イメージの固定は、時間経過によるバージョン変化への対策の一部であり、それだけで問題全体を解決するものではないという点は、次のセクションを見ていく上でも前提になります。
 
@@ -435,7 +435,7 @@ resource "docker_container" "example" {
 
 セクション6で固定できるのは、あくまでリソースが起動する瞬間のイメージの中身です。起動後にOS内部で進行する個々のパッケージの更新までは、イメージの固定だけではカバーできません。この範囲を担うのが、Ansible側でのパッケージバージョンの固定です。
 
-設定ファイル形式が変わるような影響の大きいパッケージについてのみ、`apt`モジュールに`version`を明示指定し、バージョンを固定します。
+設定ファイル形式が変わるような影響の大きいパッケージについてのみ、`apt`モジュールの`name`にバージョンを明示指定し、バージョンを固定します。
 
 * **ファイル名：**`playbooks/pin_curl_version.yml`
 
@@ -453,11 +453,11 @@ resource "docker_container" "example" {
         allow_downgrade: true
 ```
 
-`name`にパッケージ名とバージョンを`=`で連結して指定することで、そのバージョンをピンポイントで扱えます。`allow_downgrade: true`を付けておくと、現在より新しいバージョンが入っている場合でも、指定したバージョンへ明示的に揃え直すことができます。
+`name`に`パッケージ名=バージョン`の形式で指定することで、そのバージョンをピンポイントで扱えます。`apt`モジュールに`version`という独立したパラメータはなく、バージョンの指定は`name`の中で行います。`allow_downgrade: true`を付けておくと、現在より新しいバージョンが入っている場合でも、指定したバージョンへ揃え直す動作が許可されます。ただし、指定するバージョンがリポジトリに残っていることが前提です。
 
-### ■ 検証内容（version指定によって、Playbookの実行結果が意図したバージョンに揃うことの確認）
+### ■ 検証内容（`name`でのバージョン指定が、すでに一致している場合に変更なしで完了することの確認）
 
-target-node1の`curl`は、**[セクション3](#3-apt-updateによるバージョン変化がansibleに与える影響)** の検証で`apt upgrade`により`7.81.0-1ubuntu1.26`まで上がった状態です。この現在のバージョンを、`version`指定で明示的に固定します。
+target-node1の`curl`は、**[セクション3](#3-apt-updateによるバージョン変化がansibleに与える影響)** の検証で`apt upgrade`により`7.81.0-1ubuntu1.26`まで上がった状態です。この現在のバージョンを、`name`でのバージョン指定で明示的に固定します。
 
 **実行コマンド**
 
@@ -477,22 +477,24 @@ PLAY RECAP *********************************************************************
 target-node1               : ok=1    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
 
-`ok`、`changed=0`で完了しました。すでにインストールされているバージョンと`version`で指定したバージョンが一致しているため、変更は発生していません。これは、`version`指定がAnsibleの冪等性の仕組みの中で扱われていることを示しています。実際のバージョンと指定したバージョンが一致していれば`ok`、異なっていれば`changed`としてインストール、またはダウングレードが行われます。
+`ok`、`changed=0`で完了しました。すでにインストールされているバージョンと`name`で指定したバージョンが一致しているため、変更は発生していません。なお、今回の検証では、指定バージョンと実際のバージョンが異なる場合の挙動（`changed`となってインストール、またはダウングレードされること）は確認していません。この点は`apt`モジュールの仕様に基づく説明です。
+
+なお、セクション3の`check_curl_version.yml`は`assert`の期待値が`7.81.0-1ubuntu1.25`のままのため、現在の`.26`の状態で実行すれば失敗します。固定するバージョンを変えた場合は、検証用Playbookの期待値も合わせて更新する必要があります。
 
 ### ■ 結果
 
-この検証から、`apt`モジュールの`version`指定によって、Playbookの実行結果が指定したバージョンに揃うことが確認できました。`version`を指定せずに`state: present`や`state: latest`とした場合、Ansibleはリポジトリ上の最新バージョンをそのまま許容しますが、`version`を指定すれば、Playbookの実行を通じて特定のバージョンへ収束させることができます。
+この検証から、`name`でバージョンを指定したPlaybookが、すでに一致している状態では`changed=0`で完了することが確認できました。バージョンを指定せずに`state: present`や`state: latest`とした場合、Ansibleはリポジトリ上の最新バージョンをそのまま許容します。一方、`name`でバージョンを指定すれば、Playbookの実行を通じて特定のバージョンへ収束させる設計にできます。
 
-ここで、`version`指定の性質について正確に押さえておく必要があります。この指定が制御しているのは、あくまで**Playbookを実行した瞬間の状態**です。`apt`モジュールの`version`パラメータは、`apt-mark hold`のようにパッケージそのものを将来のアップデート対象から除外する仕組みではありません。つまり、`version`指定を含むPlaybookを実行した後であっても、誰かが手動で`apt-get upgrade`を実行すれば、対象パッケージのバージョンはリポジトリ上の最新へと上がってしまいます。
+ここで、バージョン指定の性質について正確に押さえておく必要があります。この指定が制御しているのは、あくまで**Playbookを実行した瞬間の状態**です。`name`でのバージョン指定は、`apt-mark hold`のようにパッケージそのものを将来のアップデート対象から除外する仕組みではありません。つまり、バージョンを指定したPlaybookを実行した後であっても、誰かが手動で`apt-get upgrade`を実行すれば、対象パッケージのバージョンはリポジトリ上の最新へと上がり得ます。この挙動は今回の検証では再現しておらず、仕様に基づく説明です。
 
-この性質は、セクション6で確認したTerraform側のイメージ固定との違いを際立たせます。Terraform側のイメージ固定は、コードで指定したタグを変更しない限り、`apply`を何度実行しても参照先が変わらないという、静的な固定です。一方、Ansible側の`version`固定は、Playbookを実行するたびに指定バージョンへ揃え直すという、動的な固定です。バージョンを固定した状態を維持し続けるには、`apt upgrade`が行われた後、`version`指定のPlaybookを改めて実行し直す必要があります。
+この性質は、セクション6で確認したTerraform側のイメージ固定との違いを際立たせます。Terraform側のイメージ固定は、コードで指定したイメージ（ダイジェストで指定すれば内容まで）を変更しない限り、`apply`を何度実行しても参照先が変わらないという、静的な固定です。一方、Ansible側のバージョン指定による固定は、Playbookを実行するたびに指定バージョンへ揃え直すという、動的な固定です。バージョンを固定した状態を維持し続けるには、`apt upgrade`が行われた後、バージョンを指定したPlaybookを改めて実行し直す必要があります。
 
 ```plaintext
-Terraform側の固定：リソース起動時点のイメージ全体のバージョン（コードを変更しない限り、apply後も一定に保たれる）
+Terraform側の固定：リソース起動時点のイメージ全体のバージョン（ダイジェストで指定し、コードを変更しない限り、apply後も一定に保たれる）
 Ansible側の固定：個別の重要パッケージのバージョン（Playbookを実行し直すたびに、指定バージョンへ揃え直される）
 ```
 
-この違いを踏まえると、Ansible側のバージョン固定は「一度設定すれば恒久的に効き続ける」ものではなく、「定期的な実行を前提にした、継続的な収束の仕組み」として運用する必要があることが分かります。影響範囲の大きいパッケージについてのみ`version`を指定し、それ以外のパッケージは固定しないという判断基準も、この動的な性質を踏まえたものです。すべてのパッケージを固定してしまうと、Playbookを実行するたびに大量のバージョン指定と、その維持のための実行を管理することになり、運用の負荷が制御のメリットを上回ってしまいます。
+この違いを踏まえると、Ansible側のバージョン固定は「一度設定すれば恒久的に効き続ける」ものではなく、「定期的な実行を前提にした、継続的な収束の仕組み」として運用する必要があることが分かります。影響範囲の大きいパッケージについてのみバージョンを指定し、それ以外のパッケージは固定しないという判断基準も、この動的な性質を踏まえたものです。すべてのパッケージを固定してしまうと、Playbookを実行するたびに大量のバージョン指定と、その維持のための実行を管理することになり、運用の負荷が制御のメリットを上回ってしまいます。
 
 次のセクションでは、固定しない部分、つまりバージョンアップを許容する部分に対して、どのような運用フローで確認を行うかを整理します。
 
@@ -508,14 +510,14 @@ Ansible側の固定：個別の重要パッケージのバージョン（Playboo
 
 固定しない部分のバージョンアップは、本番環境でいきなり試すべきではありません。セクション3、4で確認した通り、パッケージのバージョンが変わることで、Playbookの実行結果や、ミドルウェアの設定ファイルの解釈が変わる可能性があります。この変化を本番環境で最初に発見することは避け、事前に確認できる場を用意しておく必要があります。
 
-Terraformで構築された検証環境は、この事前確認の場としてそのまま活用できます。検証環境は、本番環境と同じHCLコード、同じPlaybookから構築されているため、ここで確認した結果は、本番環境にもそのまま当てはめられます。
+Terraformで構築された検証環境は、この事前確認の場としてそのまま活用できます。検証環境は、本番環境と同じHCLコード、同じPlaybookから構築されているため、同じ変更を本番環境に適用した場合の挙動を事前に確認できます。ただし、パッケージリポジトリの内容は時間とともに変わるため、検証した日と本番に適用する日とで、更新されるバージョンが異なる可能性があります。
 
 ```plaintext
 検証環境のTerraformコードでイメージバージョンを更新する
 　↓
 terraform applyで検証環境のリソースを更新する
 　↓
-検証環境のリソース内でapt updateを実行する
+検証環境のリソース内でapt update、apt upgradeを実行する
 　↓
 検証環境でPlaybookを再実行し、正常に動作することを確認する
 　↓
@@ -544,11 +546,11 @@ terraform applyで検証環境のリソースを更新する
 この回で整理した内容を確認します。
 
 * Terraformが管理しているのは起動元イメージの指定までであり、リソースが起動した後にOS内部で進行するパッケージの更新は、Terraformの管理範囲の外側で進行する
-* `apt update`によるパッケージバージョンの変化は、Ansible Playbookが前提としていたバージョンとの間に矛盾を生む。実機検証では、`curl`のバージョンが更新された後、以前は成功していた`assert`タスクが失敗する様子を確認した
+* `apt update`、`apt upgrade`によるパッケージバージョンの変化は、Ansible Playbookが前提としていたバージョンとの間に矛盾を生む。実機検証では、`curl`のバージョンが更新された後、以前は成功していた`assert`タスクが失敗する様子を確認した
 * ミドルウェアのメジャーバージョンアップによる設定ファイル形式の変化は、単純なバージョン不一致よりも発見が遅れやすい。エラーとして表面化する場合もあれば、Ansibleの実行自体は`ok`のまま、設定内容だけが意図と異なる状態になる場合もある
 * パッケージアップデートはセキュリティ上禁止できないため、「禁止」でも「放置」でもなく「制御」する設計が必要になる。更新タイミングを人為的にコントロールし、セキュリティパッチとメジャーバージョンアップとで扱いを分けるという方針を軸に置く
-* Terraform側はイメージのタグを固定値で指定することで、起動元イメージのバージョンをコードの変更なしには変わらない形で固定する。この固定は、意図しないタイミングでの`force_new_resource`を防ぐという意味も持つ
-* Ansible側は`apt`モジュールの`version`指定によって、重要なパッケージのバージョンをPlaybook実行のたびに指定バージョンへ揃える。ただしこの固定は、Terraform側の静的な固定とは異なり、`apt upgrade`が行われるたびにPlaybookを再実行して揃え直す必要がある、動的な固定である
+* Terraform側はイメージを`latest`ではなくバージョンタグで指定し、内容まで固定したい場合はダイジェストで指定する。この固定は、意図しないタイミングでの再生成（`forces replacement`）を防ぐことにもつながり得る
+* Ansible側は`apt`モジュールの`name`にバージョンを指定する（`パッケージ名=バージョン`）ことで、重要なパッケージのバージョンをPlaybook実行のたびに指定バージョンへ揃える。ただしこの固定は、Terraform側の静的な固定とは異なり、`apt upgrade`が行われるたびにPlaybookを再実行して揃え直す必要がある、動的な固定である
 * 固定しない部分については、検証環境でイメージ更新とパッケージ更新の両方を確認したうえで、問題がなければ本番環境に同様の変更を適用するという運用フローを通す
 
 ---
@@ -559,13 +561,13 @@ terraform applyで検証環境のリソースを更新する
 
 ## 10. 次回予告
 
-**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** では、Terraformを管理するエンジニアとAnsibleを実行するオペレーターが分業する体制において、tfstateへの同時操作が競合を引き起こす構造を整理しました。
+**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** では、複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消えること、tfstateを直接参照する構成では出力名の変更だけでAnsible側のスクリプトが止まることを確認しました。
 
-今回はその視点を、人的な要因から時間経過による変化へ移しました。Terraformが管理するのは起動元イメージまでであり、起動後にOS内部で進行する`apt update`はその管理範囲の外側にあるという構造を確認し、実機検証ではパッケージのバージョン変化がAnsible Playbookの実行結果に直接影響する様子を確認しました。あわせて、更新を禁止せず制御するという設計思想のもと、Terraform側のイメージピン留めとAnsible側のパッケージバージョン固定という、2つの層での制御方法と、固定しない部分を検証環境経由で本番に展開する運用フローを整理しました。
+今回はその視点を、複数人でtfstateを扱う問題から、リソースの起動後にOS内部で進むパッケージの変化へ移しました。Terraformが管理するのは起動元イメージまでであり、起動後にOS内部で進行する`apt update`はその管理範囲の外側にあるという構造を確認し、実機検証ではパッケージのバージョン変化がAnsible Playbookの実行結果に直接影響する様子を確認しました。あわせて、更新を禁止せず制御するという設計思想のもと、Terraform側のイメージピン留めとAnsible側のパッケージバージョン固定という、2つの層での制御方法と、固定しない部分を検証環境経由で本番に展開する運用フローを整理しました。
 
-次回は、リソースの再生成に伴うIPアドレスの変動という、別の時間軸での変化を扱います。コンテナやVMが再生成されると新しいIPアドレスが割り当てられますが、この変化にAnsible用のインベントリや各種設定ファイルの更新が追いつかない場合に生じる問題を取り上げます。今回がパッケージバージョンという時間経過による変化を扱ったのに対し、次回はリソース再生成というタイミングに伴う変化の問題に入ります。
+次回は、リソースの再生成に伴うIPアドレスの変動という、別の時間軸での変化を扱います。コンテナやVMが再生成されると、IPアドレスが変わることがあります。このとき、書き換えていない静的インベントリではAnsibleが接続できなくなる問題と、動的インベントリで追従できる範囲、DNSや`/etc/hosts`など追従できない参照を取り上げます。今回がパッケージバージョンという時間経過による変化を扱ったのに対し、次回はリソース再生成というタイミングに伴う変化の問題に入ります。
 
-**[次回：第17回：リソース再生成時におけるIPアドレス変動と接続情報の更新遅延](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**
+**[次回：第17回：リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**
 
 ---
 
@@ -596,20 +598,20 @@ terraform applyで検証環境のリソースを更新する
 
 ## 11. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄、再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|`terraform apply`のlocal-exec経由でAnsibleが複数回実行される構成において、冪等性が確保されていないPlaybookがterraform apply自体の失敗を引き起こす問題。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 

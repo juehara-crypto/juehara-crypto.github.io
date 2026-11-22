@@ -1,9 +1,9 @@
 ---
-title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第12回：terraform apply実行時における初期化処理とOS設定の上書き問題'
-description: 'terraform applyの再実行が初期化スクリプト・コンテナ起動定義の変更を起因としてリソースの破棄・再生成を引き起こし、Ansibleが設定したOS内部状態が消失する構造を整理する。初期化処理とAnsibleの役割分離、lifecycle設定による保護とその限界を理解する。'
+title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第12回：初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離'
+description: 'uploadブロックの追加でforces replacementが発生し、リソースが破棄、再生成されてAnsibleが設定したOS内部状態が消える構造を、実機ログで確認する。再生成後も初期化処理が書いたファイルは存在するという対比から、初期化処理とAnsibleの役割分離、lifecycle.ignore_changesによる保護とその限界を整理する。'
 pubDate: '2026-08-19'
 category: 'infra'
-tags: ['Ansible', 'Terraform', 'ライフサイクル', '初期化スクリプト', 'lifecycle']
+tags: ['Ansible', 'Terraform', 'ライフサイクル', '初期化スクリプト', 'lifecycle', 'forces replacement']
 seriesId: 'ansible-terraform-part2'
 seriesNo: 12
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/'
@@ -122,10 +122,10 @@ graph TD
 具体的には、次のような場面です。
 
 - コンテナ起動定義に少し手を加えて`terraform apply`を再実行した
-- 特にAnsible側は何も変更していないのに、再実行後にOS内部の設定が初期状態に戻っている
+- 特にAnsible側は何も変更していないのに、再実行後にOS内部の設定が消えている
 - `terraform plan`は差分を正しく示していたはずなのに、その差分が何を意味するかを見落としていた
 
-この事象の原因は、初期化スクリプトやコンテナ起動定義の性質と、Terraformがリソースをどう扱うかという2つの構造が連鎖することにあります。初期化スクリプトやコンテナ起動定義は、リソースの初回起動時にのみ実行される仕組みです。この前提のもとで初期化スクリプトやコンテナ起動定義の内容を変更すると、Terraformはそれをリソース属性の変更として検知し、更新ではなく破棄、再生成という形で対応することがあります。リソースが再生成されれば、初期化処理も再実行されます。しかし、Ansibleが投入したOS内部の設定は、この初期化処理の管轄には含まれていません。結果として、リソースが新しく生成された直後の状態は、Ansible適用前の状態に戻っています。
+この事象の原因は、初期化スクリプトやコンテナ起動定義の性質と、Terraformがリソースをどう扱うかという2つの構造が連鎖することにあります。初期化スクリプトやコンテナ起動定義は、リソースの作成時（初回起動時）にのみ実行される仕組みです。この前提のもとで初期化スクリプトやコンテナ起動定義の内容を変更すると、Terraformはそれをリソース属性の変更として検知し、更新ではなく破棄、再生成という形で対応することがあります。リソースが再生成されれば、初期化処理も再実行されます。しかし、Ansibleが投入したOS内部の設定は、この初期化処理の管轄には含まれていません。結果として、リソースが新しく生成された直後の状態は、Ansible適用前の状態に戻っています。
 
 この回では、「初期化処理とTerraformの再実行はどのように連鎖してOS層の消失を引き起こすか」という問いを軸に、この連鎖の構造を順番に整理します。まず次のセクションで、前提となる初期化処理そのものの基本動作を確認します。
 
@@ -139,11 +139,11 @@ graph TD
 
 この回の前提となる、初期化処理そのものの基本動作を整理します。
 
-Terraformでコンテナやインスタンスといったリソースを生成する際、多くのプロバイダーには、リソースの起動と同時に何らかの初期処理を実行する仕組みが用意されています。AWSであれば`user_data`、Dockerプロバイダーであれば`upload`ブロックやエントリポイント（`CMD`、`ENTRYPOINT`）の指定がこれにあたります。この回では、こうした仕組みをまとめて「初期化スクリプト・コンテナ起動定義」と呼びます。
+Terraformでコンテナやインスタンスといったリソースを生成する際、多くのプロバイダーには、リソースの起動と同時に何らかの初期処理を実行する仕組みが用意されています。AWSであれば`user_data`、Dockerプロバイダーであれば、コンテナの作成時にファイルを書き込む`upload`ブロックがこれにあたります。この回では、こうした仕組みをまとめて「初期化スクリプト・コンテナ起動定義」と呼びます。
 
 初期化スクリプト・コンテナ起動定義には、次のような共通した性質があります。
 
-- リソースの初回起動時にのみ実行される
+- リソースの作成時（初回起動時）にのみ実行、反映される
 - 通常の運用でリソースが再起動されても、初期化処理そのものは再実行されない
 - 実行されるタイミングは、リソースが生成された直後、つまりOSやコンテナのプロセスが起動するタイミングに限られる
 
@@ -180,7 +180,7 @@ flowchart TB
 
 ## 3. terraform apply再実行時の連鎖構造
 
-前セクションで、初期化スクリプト・コンテナ起動定義には「リソースの初回起動時にのみ実行される」という性質があることを確認しました。この性質が、リソースの再生成というタイミングでどのような問題を引き起こすかを、実機で確認します。
+前セクションで、初期化スクリプト・コンテナ起動定義には「リソースの作成時（初回起動時）にのみ実行される」という性質があることを確認しました。この性質が、リソースの再生成というタイミングでどのような問題を引き起こすかを、実機で確認します。
 
 まず、この連鎖の全体像を整理します。
 
@@ -379,9 +379,9 @@ Changes to Outputs:
     }
 ```
 
-target-node1〜3のすべてに`must be replaced`が表示され、その根拠として`+ upload { # forces replacement ... file = "/etc/init_marker" }`が明示されています。`upload`ブロックへの追加が`forces replacement`、つまり更新ではなく破棄・再生成としてTerraformに扱われることが分かります。
+target-node1〜3のすべてに`must be replaced`が表示され、その根拠として`+ upload { # forces replacement ... file = "/etc/init_marker" }`が明示されています。`upload`ブロックへの追加が`forces replacement`、つまり更新ではなく破棄、再生成としてTerraformに扱われることが分かります。
 
-なお、同じ出力の中には`- network_mode = "bridge" -> null`という表示もありますが、これは **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で`lifecycle.ignore_changes`の対象にした属性であり、`forces replacement`のマーカーは付いていません。再生成の引き金が`upload`ブロックの変更であることは、出力上ここで明確に切り分けられます。
+なお、同じ出力の中には`- network_mode = "bridge" -> null`という表示もありますが、これは検証環境の`docker_container.targets`で`lifecycle`ブロックの`ignore_changes`に指定している属性であり、`forces replacement`のマーカーは付いていません。再生成の引き金が`upload`ブロックの変更であることは、出力上ここで明確に切り分けられます。
 
 #### 4.【terraform apply実行】
 
@@ -430,7 +430,7 @@ target_nodes_ips = {
 }
 ```
 
-3台とも新しいコンテナとして再生成されました。IPアドレスも、target-node2のみ元と同じ`172.20.0.3`が割り当てられ、target-node1・target-node3は入れ替わっています。これは **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で触れた「IPアドレスの再利用」がここでも同じ構造で起きていることを示しています。
+3台とも新しいコンテナとして再生成されました。IPアドレスも再生成前後で変わっており、target-node2のみ元と同じ`172.20.0.3`が割り当てられ、target-node1とtarget-node3は入れ替わっています。コンテナを再生成すると、IPアドレスの割り当てが再生成前と一致するとは限りません。
 
 #### 5.【再生成後の状態確認】
 
@@ -488,23 +488,23 @@ Ansibleを再実行すれば、この`/etc/app.conf`は再び投入され、desi
 
 前セクションでは、初期化スクリプト・コンテナ起動定義そのものの変更が、リソースの破棄、再生成を引き起こす様子を実機で確認しました。ここで整理しておきたいのは、リソースが破棄、再生成される条件は、初期化スクリプト・コンテナ起動定義の変更に限られないという点です。
 
-Terraformは、リソース定義の属性変更に対して、常に「更新」で対応するわけではありません。属性の種類によっては、更新では反映できないと判断し、リソースを一度破棄してから作り直すという形で対応します。この動作は`force_new_resource`と呼ばれます。
+Terraformは、リソース定義の属性変更に対して、常に「更新」で対応するわけではありません。属性の種類によっては、更新では反映できないと判断し、リソースを一度破棄してから作り直すという形で対応します。`terraform plan`の出力では、この場合にリソースの先頭へ`-/+`が表示され、再生成の引き金になった属性には`forces replacement`という注記が付きます。
 
-前セクションで確認した`upload`ブロックの変更も、この`force_new_resource`の一例でした。そして`force_new_resource`を引き起こす属性は、初期化スクリプトに相当するものだけではありません。`docker_container`リソースの場合、代表的な例として以下が挙げられます。
+前セクションで確認した`upload`ブロックの変更も、この`forces replacement`が付く変更の一例でした。そして再生成を引き起こす属性は、初期化スクリプトに相当するものだけではありません。`docker_container`リソースの場合、例えば次の属性の変更でも再生成が起きます。
 
-- コンテナイメージの変更
 - ポートマッピングの変更
-- ネットワーク設定の変更
+- 環境変数の追加
+- ラベルの追加
 
-これらはいずれも、コンテナというリソースの根本的な構成要素であり、稼働中のコンテナに対してその場で書き換えることができない属性です。そのため、変更が加わった場合はリソースの破棄、再生成という形でしか反映できません。
+これらは、**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** の実機検証で、`terraform plan`に`-/+`と`forces replacement`が表示されることを確認した属性です。どの属性が再生成になるかは、プロバイダーとリソースごとに決まっています。
 
-ここで重要なのは、前セクションで整理した連鎖の構造そのものは変わらないという点です。前セクションで確認した通り、Ansibleの設定が消えるのは「リソースの破棄」の時点であり、その後の初期化処理の再実行はこの連鎖の一部にすぎません。したがって、初期化スクリプト・コンテナ起動定義を一切変更していなくても、他の属性変更によって`force_new_resource`が発生すれば、リソースは同じように破棄、再生成され、Ansibleが投入したOS内部の設定は同じように消失します。
+ここで重要なのは、前セクションで整理した連鎖の構造そのものは変わらないという点です。前セクションで確認した通り、Ansibleの設定が消えるのは「リソースの破棄」の時点であり、その後の初期化処理の再実行はこの連鎖の一部にすぎません。したがって、初期化スクリプト・コンテナ起動定義を一切変更していなくても、他の属性変更によって再生成が発生すれば、リソースは同じように破棄、再生成され、Ansibleが投入したOS内部の設定は同じように消失します。
 
-前セクションの実機検証でも、この構造の一端はすでに出力に表れていました。`terraform plan`の結果には`+ upload { # forces replacement ... }`という表示とともに、`- network_mode = "bridge" -> null`という表示も含まれていましたが、`network_mode`側には`forces replacement`のマーカーは付いていませんでした。これは、`network_mode`が`lifecycle.ignore_changes`の対象になっているため、この属性の変更自体は無視され、再生成の判断材料になっていないことを示しています。裏を返せば、もし`network_mode`が`ignore_changes`の対象になっていなければ、この属性の変更単独でも`force_new_resource`が発生し得るということです。属性ごとに「更新で反映できるか、破棄、再生成が必要か」という性質が個別に決まっている、という点がここから読み取れます。
+前セクションの実機検証でも、この構造の一端はすでに出力に表れていました。`terraform plan`の結果には`+ upload { # forces replacement ... }`という表示とともに、`- network_mode = "bridge" -> null`という表示も含まれていましたが、`network_mode`側には`forces replacement`のマーカーは付いていませんでした。これは、`network_mode`が`lifecycle.ignore_changes`の対象になっているため、この属性の変更自体は無視され、再生成の判断材料になっていないことを示しています。裏を返せば、もし`network_mode`が`ignore_changes`の対象になっていなければ、この属性の変更単独でも再生成が発生し得るということです。属性ごとに「更新で反映できるか、破棄、再生成が必要か」という性質が個別に決まっている、という点がここから読み取れます。
 
-`terraform plan`は、この`force_new_resource`が発生する場合、リソースの先頭に`-/+`という記号を表示します。これは前セクションで確認した`docker_container.targets`の出力でも同様でした。この`-/+`は、単なる属性の更新（`~`）とは明確に区別されており、`apply`を実行する前に、この記号を確認する習慣があれば、意図しないリソースの再生成を事前に把握できます。
+前セクションで確認した`docker_container.targets`の出力でも、再生成が発生するリソースの先頭には`-/+`が表示されていました。この`-/+`は、単なる属性の更新（`~`）とは明確に区別されており、`apply`を実行する前に、この記号を確認する習慣があれば、意図しないリソースの再生成を事前に把握できます。
 
-初期化スクリプト・コンテナ起動定義の変更に限らず、どの属性が`force_new_resource`を引き起こすかを網羅的に把握することは、この回の範囲を超えます。ここで押さえておきたいのは、「初期化スクリプトを変更していないから安全」とは言えないという点です。次のセクションでは、この`force_new_resource`という構造そのものを避けることはできないという前提に立ったうえで、Ansibleの設定消失をどう防ぐかという設計パターンを整理します。
+初期化スクリプト・コンテナ起動定義の変更に限らず、どの属性が再生成を引き起こすかを網羅的に把握することは、この回の範囲を超えます。ここで押さえておきたいのは、「初期化スクリプトを変更していないから安全」とは言えないという点です。次のセクションでは、再生成そのものを完全には避けられないという前提に立ったうえで、Ansibleの設定消失をどう防ぐかという設計パターンを整理します。
 
 ---
 
@@ -514,7 +514,7 @@ Terraformは、リソース定義の属性変更に対して、常に「更新�
 
 ## 5. 消失を防ぐ設計パターン
 
-セクション3、4で整理した内容を振り返ります。初期化スクリプト・コンテナ起動定義の変更、あるいはそれ以外の属性変更のどちらであっても、`force_new_resource`が発生すればリソースは破棄、再生成され、Ansibleが投入したOS内部の設定は消失します。この回の最後に、この消失リスクに対する設計パターンを整理します。
+セクション3、4で整理した内容を振り返ります。初期化スクリプト・コンテナ起動定義の変更、あるいはそれ以外の属性変更のどちらであっても、再生成が発生すればリソースは破棄、再生成され、Ansibleが投入したOS内部の設定は消失します。この回の最後に、この消失リスクに対する設計パターンを整理します。
 
 ### 初期化スクリプト・コンテナ起動定義の役割を最小限に絞る
 
@@ -522,7 +522,7 @@ Terraformは、リソース定義の属性変更に対して、常に「更新�
 
 セクション2で整理した通り、初期化スクリプト・コンテナ起動定義の典型的な用途は、SSH鍵配置やPythonインストールといった、Ansible実行前の前提条件整備でした。この役割を、文字通り「Ansibleが接続し、実行できる状態にするための最小限の準備」に絞り込み、それ以外のOS設定はすべてAnsibleに集約します。
 
-この役割分担を徹底しておくと、リソースが再生成された場合の被害の範囲が変わります。初期化スクリプト・コンテナ起動定義の内容が最小限であれば、再生成後に失われるのは「Ansibleがまだ実行されていない」という一時的な状態だけです。Ansibleを再実行すれば、OS設定は同じ手順で同じ状態に復元されます。逆に、初期化スクリプト・コンテナ起動定義にOS設定の本体まで書き込んでしまっていると、その内容自体を前セクションで整理した属性変更のたびに書き換えることになり、`force_new_resource`を誘発する頻度そのものが増えることにもつながります。
+この役割分担を徹底しておくと、リソースが再生成された場合の被害の範囲が変わります。初期化スクリプト・コンテナ起動定義の内容が最小限であれば、再生成後に失われるのは「Ansibleがまだ実行されていない」という一時的な状態だけです。Ansibleを再実行すれば、OS設定は同じ手順で同じ状態に復元されます。逆に、初期化スクリプト・コンテナ起動定義にOS設定の本体まで書き込んでしまっていると、その内容自体を前セクションで整理した属性変更のたびに書き換えることになり、再生成を誘発する頻度そのものが増えることにもつながります。
 
 これは新しい技術要素を導入する設計パターンではなく、初期化処理とAnsibleという2つの仕組みの役割を、それぞれの得意な範囲に収めるという整理です。セクション3の検証で使った`/etc/init_marker`と`/etc/app.conf`の対比は、この役割分担が実際に機能した場合の姿を示していました。`/etc/init_marker`側は再生成のたびに新しく作られますが、それは初期化処理の役割の範囲内であり、問題にはなりません。問題になるのは、`/etc/app.conf`のような、本来Ansibleが継続的に管理すべき内容が、初期化スクリプト・コンテナ起動定義の側に書かれてしまっているケースです。
 
@@ -540,10 +540,9 @@ resource "docker_container" "example" {
 }
 ```
 
-この設定を加えると、指定した属性に変更が加わっても、`terraform plan`はその変更を差分として検知しません。結果として、その属性の変更を理由にした`force_new_resource`は発生せず、リソースの破棄、再生成も起きません。
+この設定を加えると、指定した属性に変更が加わっても、`terraform plan`はその変更を差分として検知しません。結果として、その属性の変更を理由にした再生成は発生せず、リソースの破棄、再生成も起きません。
 
-この方法は、今回の検証環境ですでに実例があります。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で`network_mode`の意図しないドリフトに対応するために追加した、以下の設定です。
-
+この方法は、今回の検証環境ですでに実例があります。`terraform plan`のたびに`network_mode`が`"bridge" -> null`という差分として表示され、再生成の対象になってしまうことへの対応として入れている、以下の設定です。
 
 ```hcl
 resource "docker_container" "targets" {
@@ -554,17 +553,17 @@ resource "docker_container" "targets" {
 }
 ```
 
-この設定により、`network_mode`の変更は無視され、この属性を理由にした再生成は起きません。同じ考え方を初期化スクリプトに相当する属性（`docker_container`であれば`upload`など）に適用すれば、その属性の変更による再生成を防ぐことができます。
+この設定により、`network_mode`の変更は無視され、この属性を理由にした再生成は起きません。同じ考え方を初期化スクリプトに相当する属性（`docker_container`であれば`upload`など）に適用すれば、その属性の変更による再生成を防げる考え方になります（この回では`upload`への適用は実測していません）。
 
-ただし、この方法には明確な適用範囲の限界があります。`ignore_changes`が防げるのは、あくまで「配列に指定した、その属性の変更」を理由にした再生成だけです。セクション4で整理した通り、`force_new_resource`はコンテナイメージやポートマッピング、ネットワーク設定といった、初期化スクリプトとは無関係の属性変更によっても発生します。`ignore_changes`にどれだけ属性を追加しても、指定していない属性の変更による再生成までは防げません。
+ただし、この方法には明確な適用範囲の限界があります。`ignore_changes`が防げるのは、あくまで「配列に指定した、その属性の変更」を理由にした再生成だけです。セクション4で整理した通り、再生成はポートマッピングや環境変数、ラベルといった、初期化スクリプトとは無関係の属性変更によっても発生します。`ignore_changes`にどれだけ属性を追加しても、指定していない属性の変更による再生成までは防げません。
 
 さらに、`ignore_changes`で変更を無視するということは、その属性については、HCLコード側の記述と実際のリソースの状態が乖離したまま放置されるということでもあります。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** で整理した通り、`terraform plan`が検知する範囲はtfstateが管理する属性に限られますが、`ignore_changes`はその検知範囲の中から、意図的に一部を除外する設定です。除外した属性について、HCLコードを見ただけでは実際の値が分からなくなるという副作用は、この設定を使う際に理解しておく必要があります。
 
 ### 2つのパターンの関係
 
-この2つのパターンは、どちらか一方を選ぶものではなく、組み合わせて運用するものです。初期化スクリプト・コンテナ起動定義の役割を最小限に絞ることは、`force_new_resource`が発生した場合の被害を小さくする設計であり、`lifecycle.ignore_changes`は、特定の属性変更について`force_new_resource`の発生そのものを防ぐ設計です。前者はリソース再生成が起きること自体を前提にした備えであり、後者は特定の条件下での再生成を未然に防ぐ備えです。
+この2つのパターンは、どちらか一方を選ぶものではなく、組み合わせて運用するものです。初期化スクリプト・コンテナ起動定義の役割を最小限に絞ることは、再生成が発生した場合の被害を小さくする設計であり、`lifecycle.ignore_changes`は、特定の属性変更について再生成の発生そのものを防ぐ設計です。前者はリソース再生成が起きること自体を前提にした備えであり、後者は特定の条件下での再生成を未然に防ぐ備えです。
 
-セクション4で整理した通り、`force_new_resource`を引き起こす属性は初期化スクリプトに限らず、`ignore_changes`で全ての属性をカバーすることは現実的ではありません。したがって、`ignore_changes`で防げる範囲には限界があるという前提に立ったうえで、初期化スクリプト・コンテナ起動定義の役割を最小限に絞り、OS設定の本体をAnsibleに集約しておくという設計が、この回で整理した消失リスクに対する基本的な備え方になります。
+セクション4で整理した通り、再生成を引き起こす属性は初期化スクリプトに限らず、`ignore_changes`で全ての属性をカバーすることは現実的ではありません。したがって、`ignore_changes`で防げる範囲には限界があるという前提に立ったうえで、初期化スクリプト・コンテナ起動定義の役割を最小限に絞り、OS設定の本体をAnsibleに集約しておくという設計が、この回で整理した消失リスクに対する基本的な備え方になります。
 
 ---
 
@@ -576,10 +575,10 @@ resource "docker_container" "targets" {
 
 この回で整理した内容を確認します。
 
-* 初期化スクリプト・コンテナ起動定義はリソースの初回起動時にのみ実行される仕組みであり、通常の運用でリソースが再起動されても再実行されない。ただし、リソースが破棄、再生成された場合は、それも「初回起動」にあたるため、初期化処理は改めて実行される
-* 初期化スクリプト・コンテナ起動定義の変更は、Terraformによるリソースの破棄、再生成（`force_new_resource`）を引き起こす。Ansibleの設定が消えるのはこの破棄の時点であり、初期化処理の再実行そのものはOS設定を復元しない
-* `force_new_resource`を引き起こす属性は初期化スクリプト・コンテナ起動定義に限られない。コンテナイメージやポートマッピング、ネットワーク設定といった他の属性変更によっても同様の破棄、再生成が発生し得る
-* `terraform plan`が出力する`-/+`という記号は、この`force_new_resource`が発生することを示す。`apply`前にこの記号を確認する習慣が、意図しない再生成の把握につながる
+* 初期化スクリプト・コンテナ起動定義はリソースの作成時（初回起動時）にのみ実行される仕組みであり、通常の運用でリソースが再起動されても再実行されない。ただし、リソースが破棄、再生成された場合は、それも「初回起動」にあたるため、初期化処理は改めて実行される
+* `upload`ブロックの追加のような初期化スクリプト・コンテナ起動定義の変更は、`terraform plan`で`forces replacement`と表示され、Terraformによるリソースの破棄、再生成を引き起こす。Ansibleの設定が消えるのはこの破棄の時点であり、初期化処理の再実行そのものはOS設定を復元しない
+* 再生成を引き起こす属性は初期化スクリプト・コンテナ起動定義に限られない。ポートマッピングや環境変数、ラベルといった他の属性変更によっても同様の破棄、再生成が発生し得る
+* `terraform plan`が出力する`-/+`という記号と`forces replacement`の注記は、リソースが再生成されることを示す。`apply`前にこれらを確認する習慣が、意図しない再生成の把握につながる
 * 消失を防ぐ設計パターンとして、初期化スクリプト・コンテナ起動定義の役割をAnsible実行前の最小限の前提条件整備に絞り、OS設定の本体をAnsibleに集約する方法と、`lifecycle { ignore_changes }`で特定の属性変更を無視する方法がある。両者は組み合わせて運用するものであり、`ignore_changes`は指定した属性以外の変更による再生成までは防げない
 
 ---
@@ -590,11 +589,11 @@ resource "docker_container" "targets" {
 
 ## 7. 次回予告
 
-**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、手動変更によるドリフトの検知と同期を扱いました。今回はその視点を変え、`terraform apply`という正規の操作そのものが、Ansibleの設定を消失させる引き金になるという構造を整理しました。初期化スクリプト・コンテナ起動定義の変更が`force_new_resource`を引き起こし、リソースの破棄、再生成によってAnsibleの設定が消えるという連鎖、そしてこの`force_new_resource`が初期化スクリプトの変更に限らず発生し得るという点を確認しました。
+**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** では、手動変更によるドリフトの検知と同期を扱いました。今回はその視点を変え、`terraform apply`という正規の操作そのものが、Ansibleの設定を消失させる引き金になるという構造を整理しました。初期化スクリプト・コンテナ起動定義の変更が`forces replacement`を引き起こし、リソースの破棄、再生成によってAnsibleの設定が消えるという連鎖、そしてこの再生成が初期化スクリプトの変更に限らず発生し得るという点を確認しました。
 
-次回は、この`force_new_resource`という現象そのものに焦点を絞り込みます。今回は「どのような属性変更が再生成を引き起こすか」を代表例にとどめましたが、次回はTerraformのHCL定義変更によってリソースが「更新」ではなく「破棄・再生成」として扱われる条件を整理し、Ansibleが投入した内部データが消失するリスクをより具体的に扱います。
+次回は、この再生成という現象そのものに焦点を絞り込みます。今回は再生成を引き起こす属性を代表例にとどめましたが、次回は、HCLの1行の変更が「更新」と「破棄、再生成」のどちらになるかの分かれ目を実機で確かめ、`terraform plan`の`-/+`と`forces replacement`の表示から、`apply`前に再生成を見分ける方法を扱います。
 
-**[次回：第13回：コード修正に伴うリソースの強制再生成（リビルド）リスク](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**
+**[次回：第13回：HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**
 
 ---
 
@@ -626,20 +625,20 @@ resource "docker_container" "targets" {
 
 ## 8. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄・再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|1回目の実行は成功するものの、2回目（運用フェーズ）の実行時に「ファイル重複」や「サービス重複起動」等でAnsibleが停止する問題。冪等性シリーズ・レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 

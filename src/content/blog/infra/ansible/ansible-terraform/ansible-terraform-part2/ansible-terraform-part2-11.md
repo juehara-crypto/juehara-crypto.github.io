@@ -1,6 +1,6 @@
 ---
-title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第11回：手動変更による構成ドリフトの検知と同期手法'
-description: 'Terraform管理下のリソースに手動変更が加わったとき、terraform planが検知できる差分とできない差分の構造的な違いを整理する。OS層のドリフト検知をAnsibleが補完する構成と、インフラ層・OS層を二軸で確認・同期する設計方針を理解する。'
+title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第11回：Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完'
+description: 'Terraformのplanが検知できるのはtfstateに記録された属性だけで、OS内部の変更は管理範囲の外にある。手動やAnsibleによるOS層の変更をAnsibleの--check --diffで補完する方法と、インフラ層、OS層を二軸で確認、同期する設計方針を実機で確認する。'
 pubDate: '2026-08-19'
 category: 'infra'
 tags: ['Ansible', 'Terraform', 'ドリフト', '構成管理', '--check']
@@ -10,7 +10,6 @@ prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/'
 relatedSeries: ''
 ---
-
 
 <style>
 table th,
@@ -236,7 +235,7 @@ Terraform has compared your real infrastructure against your configuration and f
 ```
 `/tmp/manual_test.txt`というファイルをコンテナ内部に作成したにもかかわらず、`terraform plan`は「No changes」と出力しました。これは、Terraformがコンテナというリソースの存在とその属性（イメージ、ポート設定など）のみを管理しており、コンテナ内部のファイルシステムの状態はそもそも比較対象に含んでいないためです。
 
-この結果から分かるのは、`terraform plan`が「変更なし」と報告することは、インフラリソースの属性に変更がないことを意味するのであって、リソース内部の状態がdesired stateと一致していることを意味しないという点です。ドリフトシリーズ **[第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-00/)** ・ **[第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-01/)** で扱った「Ansibleが実行されていない時間に起きる手動変更」の問題は、このTerraform×Ansible環境においても同じ構造で存在しています。ただし、こちらは「Ansibleが実行されていない時間」ではなく、「Terraformの管理範囲そのものの外側」で発生するという点に違いがあります。
+この結果から分かるのは、`terraform plan`が「変更なし」と報告することは、インフラリソースの属性に変更がないことを意味するのであって、リソース内部の状態がdesired stateと一致していることを意味しないという点です。**[ドリフトシリーズ第0回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-00/)**、**[ドリフトシリーズ第1回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-drift/ansible-drift-01/)** で扱った「Ansibleが実行されていない時間に起きる手動変更」の問題は、このTerraform×Ansible環境においても同じ構造で存在しています。ただし、こちらは「Ansibleが実行されていない時間」ではなく、「Terraformの管理範囲そのものの外側」で発生するという点に違いがあります。
 
 次のセクションでは、この検知できない領域をAnsibleがどのように補うかを見ていきます。
 
@@ -680,7 +679,7 @@ flowchart LR
 
 ### 順序が問題にならないケースとの違い
 
-セクション4で扱ったOS層の手動変更（`/etc/app.conf`の`environment`値の書き換え）は、この順序の問題を持ちません。OS内部のファイルの状態は、Terraformが管理しているリソース属性やインベントリの内容に影響を与えないためです。この場合、`terraform plan`と`ansible-playbook --check --diff`のどちらを先に実行しても、確認結果は変わりません。
+セクション3で扱ったOS層の手動変更（`/etc/app.conf`の`environment`値の書き換え）は、この順序の問題を持ちません。OS内部のファイルの状態は、Terraformが管理しているリソース属性やインベントリの内容に影響を与えないためです。この場合、`terraform plan`と`ansible-playbook --check --diff`のどちらを先に実行しても、確認結果は変わりません。
 
 順序が問題になるかどうかを分けているのは、変更の内容がAnsible側の実行の前提条件（接続先ホスト、認証情報など）に影響するかどうかという点です。IPアドレスの変動のように、インフラ層の変更がAnsibleの適用対象を左右する場合は順序が重要になり、OS内部だけで完結する変更の場合は順序が問題になりません。
 
@@ -720,9 +719,9 @@ flowchart LR
 
 第1部（第1〜10回）では、Terraformでリソースを生成してからAnsibleが構成管理を始めるまでの、環境構築・連携時のトラブルを扱ってきました。第2部（第11〜20回）は、視点が「構築時」から「構築後の継続運用」に移ります。今回はその最初の回として、手動変更が加わった際にTerraform、Ansibleそれぞれの管理範囲でどこまで検知できるかを整理しました。
 
-次回は、手動変更ではなく、**Terraformの操作そのもの**が引き金となって発生するドリフトを扱います。`terraform apply`実行時に初期化スクリプトやコンテナ起動定義を書き換えて再実行すると、Ansibleがすでに設定済みだったOS内部の状態が初期化されてしまう問題を取り上げます。
+次回は、手動変更ではなく、**Terraformの操作そのもの**が引き金となって発生するドリフトを扱います。初期化スクリプトやコンテナ起動定義を変更して`terraform apply`を再実行すると、コンテナが作り直され、Ansibleがすでに設定済みだったOS内部の設定が消えてしまう問題を取り上げます。
 
-**[次回：第12回：`terraform apply`実行時における初期化処理とOS設定の上書き問題](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**
+**[次回：第12回：初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**
 
 ---
 
@@ -753,20 +752,20 @@ flowchart LR
 
 ## 8. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄・再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|1回目の実行は成功するものの、2回目（運用フェーズ）の実行時に「ファイル重複」や「サービス重複起動」等でAnsibleが停止する問題。冪等性シリーズ・レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+| **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** | Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完                                                              | 構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。                                   |
+| **[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)** | 初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離                   | 初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。                                                          |
+| **[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** | HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定                                        | HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。                                               |
+| **[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)** | local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界                                             | `local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。 |
+| **[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** | 複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離                              | 複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。                                             |
+| **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** | apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定                               | 運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。                                                 |
+| **[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)** | リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照                                             | リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。                                                                   |
+| **[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** | sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン                                                                | `sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。                                                                               |
+| **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** | ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更 | ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。                         |
+| **[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)** | 運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け                                                      | 第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。                                                                                 |
 
 ---
 

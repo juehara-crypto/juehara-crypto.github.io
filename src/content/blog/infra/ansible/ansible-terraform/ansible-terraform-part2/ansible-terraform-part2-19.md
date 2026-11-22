@@ -1,7 +1,7 @@
 ---
 title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第19回：OSのメジャーバージョンアップ時におけるPlaybookの互換性検証'
 description: 'Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる構造を整理する。Pythonバージョンの変化、コマンド・パッケージの非互換、モジュール自体の非互換を実機で確認し、本番切り替え前の段階的な検証フローを理解する。'
-pubDate: 2026-08-24
+pubDate: '2026-08-24'
 category: 'infra'
 tags: ['Ansible', 'Terraform', 'OSメジャーバージョンアップ', 'Playbook互換性', 'Ubuntu']
 seriesId: 'ansible-terraform-part2'
@@ -99,15 +99,16 @@ graph TD
 7. [まとめ](#7-まとめ)
 8. [次回予告](#8-次回予告)
 9. [連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」](#9-連載一覧ansibleとterraformの連携が壊れる理由はライフサイクルにあった)
+
 ---
 
 ## 1. はじめに
 
 「ベースイメージのバージョンを上げただけのつもりが、動いていたはずのPlaybookが軒並みエラーで止まった」という経験はないでしょうか。
 
-**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** では、機密情報という運用上のデータを、TerraformとAnsible Vaultのどちらに管理させるべきかを整理しました。今回扱うのは、データの管理場所ではなく、OSそのものの世代交代です。
+**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** では、`sensitive = true`を指定してもtfstateにパスワードが平文で残ることを確認し、機密情報という運用上のデータを、TerraformとAnsible Vaultでどう分担するかを整理しました。今回扱うのは、データの管理場所ではなく、OSそのものの世代交代です。
 
-**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`によってOS内部のパッケージバージョンが少しずつ進行し、Ansible Playbookの前提と食い違っていく問題を扱いました。あの回のバージョン変化は、誰も意図しないまま、運用の中で自然に発生するものでした。今回のOSメジャーバージョンアップは、これとは起点が異なります。ベースイメージを新しい世代に切り替えるかどうかは、Terraform側のコードを変更するという、明確に意図された操作から始まります。
+**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`・`apt upgrade`によってOS内部のパッケージバージョンが少しずつ進行し、Ansible Playbookの前提と食い違っていく問題を扱いました。あの回のバージョン変化は、誰も意図しないまま、運用の中で自然に発生するものでした。今回のOSメジャーバージョンアップは、これとは起点が異なります。ベースイメージを新しい世代に切り替えるかどうかは、Terraform側のコードを変更するという、明確に意図された操作から始まります。
 
 具体的には、次のような場面です。
 
@@ -165,7 +166,7 @@ CMD ["/usr/sbin/sshd", "-D"]
 
 既存の`Dockerfile`（Ubuntu 22.04用）との違いは、ベースイメージのタグのみです。
 
-続いて、`main.tf`に新しいイメージと、検証専用のコンテナを追加します。target-node1〜3本体には手を加えず、独立した検証用ノードとして扱います。
+続いて、`main.tf`に新しいイメージと、検証専用のコンテナを追加します。target-node1〜3の定義自体（イメージやDockerfile）には変更を加えず、独立した検証用ノードとして追加します。
 
 * **ファイル名：**`main.tf`（追記部分）
 ```hcl
@@ -207,7 +208,7 @@ terraform apply
 
 **▼ 実行結果**
 ```plaintext
-（…target-node1〜3を含む既存リソースの再作成ログは省略…）
+（…target-node1〜3のコンテナの作成と、local_file.ansible_inventoryの置き換えのログは省略…）
 
   # docker_image.ansible_target_v2404 will be created
   + resource "docker_image" "ansible_target_v2404" {
@@ -250,7 +251,9 @@ docker_container.target_v2404: Creation complete after 2s [id=7b322282a4e294d424
 Apply complete! Resources: 6 added, 0 changed, 1 destroyed.
 ```
 
-`docker_image.ansible_target_v2404`のビルドには2分2秒かかっています。これは新しいベースイメージ（Ubuntu 24.04）を初めて取得し、パッケージをインストールする処理によるもので、既存の22.04系イメージのビルドより時間を要しています。ビルド完了後、`docker_container.target_v2404`（`target-node-v2404`）も正常に作成されました。
+`docker_image.ansible_target_v2404`のビルドには2分2秒かかっています。これは新しいベースイメージ（Ubuntu 24.04）を初めて取得し、パッケージをインストールする処理によるものです。
+
+今回の`apply`の結果（6 added, 0 changed, 1 destroyed）の内訳は、次のとおりです。新規に追加したのは、`docker_image.ansible_target_v2404`と`docker_container.target_v2404`の2つです。target-node1〜3のコンテナ本体の3つは、`apply`の時点で検証環境にコンテナが存在していなかったため、既存リソースの更新ではなく新規作成として扱われました。残る1つは`local_file.ansible_inventory`で、ノードのIPアドレスが変わって内容が変わったため、置き換え（破棄してから作成）になりました。唯一の破棄は、この置き換えによるものです。target-node1〜3の定義（イメージ、Dockerfile）自体は変更していないため、作成後も引き続き同じUbuntu 22.04のイメージから起動しています。
 
 ### ■ 結果
 
@@ -263,7 +266,6 @@ Apply complete! Resources: 6 added, 0 changed, 1 destroyed.
 [↑ 目次に戻る](#-目次)
 
 ---
-
 
 ## 3. Pythonバージョン変化による影響
 
@@ -309,7 +311,19 @@ PLAY RECAP *********************************************************************
 target-node1               : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
 
-続けて、セクション2で作成した新世代のtarget-node-v2404に対して、同じPlaybookを実行します。
+続けて、セクション2で作成した新世代のtarget-node-v2404に対して、同じPlaybookを実行します。まず、target-node-v2404のIPアドレスを確認します。
+
+**実行コマンド**
+```plaintext
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' target-node-v2404
+```
+
+**▼ 実行結果**
+```plaintext
+172.20.0.5
+```
+
+このIPアドレスに対して、同じPlaybookを実行します。
 
 **実行コマンド**
 ```plaintext
@@ -506,8 +520,6 @@ ansible-playbook -i "172.20.0.5," -u ansible --private-key ~/iac/docker-lab/id_e
 ```
 
 **▼ 実行結果**
-
-
 ```plaintext
 PLAY [APTソースファイルの形式を確認する] ****************************************************************************************************************************************************
 TASK [/etc/apt/sources.listの中身を表示する] ************************************************************************************************************************************************
@@ -544,7 +556,7 @@ target-node-v2404では、`/etc/apt/sources.list`の中身は案内コメント�
 
 同じ`/etc/apt/sources.list`というパスでも、OS世代によって中身がまったく異なることが確認できました。22.04ではこのファイル自体にリポジトリ定義が記載されていましたが、24.04ではファイルはほぼ空で、実体は`sources.list.d/ubuntu.sources`という新しいDEB822形式のファイルに移動しています。
 
-この変化は、`command`・`shell`タスクで`/etc/apt/sources.list`の中身を`grep`・`sed`等で直接参照、編集するPlaybookに影響します。特定のリポジトリ行を検索して書き換える、コメントアウトを解除する、といった処理を組んでいた場合、24.04環境ではファイルの中身が想定と異なるため、意図した変更が行われないまま処理だけが正常終了してしまう可能性があります。エラーにならずに済んでしまう分、この種の変化は気づきにくいという点は、第16回セクション4で確認した「設定ファイルの意味が静かに変わる変化」とも共通する構造です。
+この変化は、`command`・`shell`タスクで`/etc/apt/sources.list`の中身を`grep`・`sed`等で直接参照、編集するPlaybookに影響します。特定のリポジトリ行を検索して書き換える、コメントアウトを解除する、といった処理を組んでいた場合、24.04環境ではファイルの中身が想定と異なるため、意図した変更が行われないまま処理だけが正常終了してしまう可能性があります。エラーにならずに済んでしまう分、この種の変化は気づきにくいという点は、**[第16回のセクション4](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** で整理した「設定ファイルの意味が静かに変わる変化」とも共通する構造です。
 
 ここで扱ったAPTソースファイルの例は、OS世代間の非互換の一例に過ぎません。パッケージ名の変更や、特定のコマンドオプションの廃止・変更も、同種の構造で発生します。個々の非互換パターンを網羅的に洗い出すことがこの回の目的ではなく、「OS標準のファイル配置・形式そのものが、メジャーバージョンアップによって変わり得る」という前提を持つことが重要です。
 
@@ -556,13 +568,13 @@ target-node-v2404では、`/etc/apt/sources.list`の中身は案内コメント�
 
 ## 5. Ansibleモジュール自体の非互換
 
-モジュールレベルでの非互換を整理します。
+モジュールレベルでの非互換を整理します。なお、このセクションは実機検証を伴いません。この検証環境（軽量コンテナ、systemd非搭載等）の制約上、モジュールレベルの非互換を狙って再現することが難しいため、以下は概念レベルの整理にとどめます。
 
 セクション4では、`command`・`shell`タスクのように、Ansibleが生のコマンドやファイル操作をそのまま実行するケースで、OS世代の違いが表面化する様子を確認しました。ここで扱うのは、Ansibleが用意した抽象化されたモジュール自体が関わるケースです。
 
 Ansibleの標準モジュール（`apt`、`user`、`service`等）は、多くの場合、OSディストリビューションやバージョンの違いをある程度吸収するよう設計されています。たとえば`apt`モジュールは、Ubuntu・Debian系であれば、内部的なAPTコマンドの細かな違いを意識せずに使えるよう抽象化されています。この抽象化があるからこそ、Playbookの記述自体はOSのバージョンに縛られず、同じタスクを異なる環境に対して使い回せます。
 
-しかし、この抽象化には限界があります。モジュールが内部で呼び出している具体的なコマンドや、参照しているファイルパスが、OS世代によって変わることがあります。セクション4で確認した`/etc/apt/sources.list`の配置・形式の変化は、その典型的な例です。モジュール自体のインターフェース（Playbook側から見た使い方）が変わらなくても、内部で依存している前提が崩れれば、モジュールの抽象化だけでは吸収しきれない挙動の違いが生じる可能性があります。
+しかし、この抽象化には限界があります。モジュールが内部で呼び出している具体的なコマンドや、参照しているファイルパスが、OS世代によって変わることがあります。セクション4で確認した`/etc/apt/sources.list`の配置・形式の変化のように、モジュールが前提にしているOS側のファイルや仕組みが変わることもあり得ます（モジュールへの影響は、この回では確認していません）。モジュール自体のインターフェース（Playbook側から見た使い方）が変わらなくても、内部で依存している前提が崩れれば、モジュールの抽象化だけでは吸収しきれない挙動の違いが生じる可能性があります。
 
 この違いを整理すると、次のようになります。
 
@@ -591,7 +603,7 @@ Playbook側の記述は変わらないが、モジュールが内部で依存す
 
 セクション3ではPythonインタープリタの固定パスが新世代で通用しなくなること、セクション4ではAPTソースファイルの配置・形式が変わること、セクション5ではAnsibleモジュールの抽象化だけでは吸収しきれない非互換が生じ得ることを、それぞれ確認してきました。これらはいずれも、ベースイメージを切り替えて実際にPlaybookを動かしてみて初めて発見できる種類の問題です。事前にすべてを予測することは現実的ではありません。
 
-**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`によるパッケージバージョンの変化に対して、検証環境でイメージ更新とパッケージ更新の両方を確認したうえで本番へ適用する、というフローを整理しました。今回のOSメジャーバージョンアップも、この考え方の骨格自体は同じです。
+**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`・`apt upgrade`によるパッケージバージョンの変化に対して、検証環境でイメージ更新とパッケージ更新の両方を確認したうえで本番へ適用する、というフローを整理しました。今回のOSメジャーバージョンアップも、この考え方の骨格自体は同じです。
 
 ```plaintext
 検証環境のTerraformコードでベースイメージを新世代に変更する
@@ -607,7 +619,7 @@ Playbook全体をansible-playbookで実行する
 本番環境のTerraformコード・Playbookに同様の変更を適用する
 ```
 
-このフローは **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** と同じ骨格ですが、対象範囲には大きな違いがあります。**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** で扱った`apt update`は、個々のパッケージのバージョンという限定的な範囲の変化でした。一方、今回のベースイメージ世代切り替えは、Pythonインタープリタのパス、APTのファイル配置、そしてAnsibleモジュールが依存する内部的な前提まで、OS全体の土台が一度に変わる操作です。セクション2〜5で確認した非互換は、いずれもこの「土台が一度に変わる」という性質から生じたものでした。
+このフローは **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** と同じ骨格ですが、対象範囲には大きな違いがあります。**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** で扱った`apt update`・`apt upgrade`は、個々のパッケージのバージョンという限定的な範囲の変化でした。一方、今回のベースイメージ世代切り替えは、Pythonインタープリタのパス、APTのファイル配置、そしてAnsibleモジュールが依存する内部的な前提まで、OS全体の土台が一度に変わる操作です。セクション2〜5で確認した非互換は、いずれもこの「土台が一度に変わる」という性質から生じたものでした。
 
 この違いから、検証環境での確認作業も、対象がパッケージ単体だったときより広くなります。今回であれば、以下のような観点で失敗タスクを洗い出すことになります。
 
@@ -615,9 +627,9 @@ Playbook全体をansible-playbookで実行する
 * `command`・`shell`タスクが、OS標準のファイル配置や形式を前提にしていないか（セクション4）
 * 特定のAnsibleモジュールが、想定と異なる結果を返していないか（セクション5）
 
-検証環境で洗い出した失敗タスクは、その場で修正し、再度Playbook全体を実行して正常完了することを確認します。この往復を経てから、本番環境のTerraformコードとAnsible Playbookに同様の変更を適用します。検証環境と本番環境で同じコードベースを使っていれば、この適用作業は、検証環境で行った変更をそのままリポジトリに反映するだけで済みます。
+検証環境で洗い出した失敗タスクは、その場で修正し、再度Playbook全体を実行して正常完了することを確認します。この往復を経てから、本番環境のTerraformコードとAnsible Playbookに同様の変更を適用します。検証環境と本番環境で同じコードベースを使っていれば、この適用作業は、検証環境で行った変更をそのままリポジトリに反映するだけで済みます。ただし、パッケージリポジトリの内容は時間とともに変わるため、検証環境での確認からあまり日を置かずに本番へ適用することが望ましい点には注意が必要です。
 
-なお、このフローを経て一度洗い出しが完了しても、それで完全に安心できるわけではありません。今回のPlaybookで使っていないモジュールや、実行していないコマンドの中に、まだ見つかっていない非互換が潜んでいる可能性は残ります。継続的にこの種の非互換を検知し続ける仕組み（CI/CDパイプラインへの組み込み等）は、第4部（改善・CI/CD自動化編）、および第34回で扱うTestinfraによる状態検証の領域と接続します。この回では、あくまで本番切り替え前の一度きりの検証フローとして扱う範囲にとどめます。
+なお、このフローを経て一度洗い出しが完了しても、それで完全に安心できるわけではありません。今回のPlaybookで使っていないモジュールや、実行していないコマンドの中に、まだ見つかっていない非互換が潜んでいる可能性は残ります。継続的にこの種の非互換を検知し続ける仕組み（CI/CDパイプラインへの組み込み等）は、第4部（改善、CI/CD自動化編）、および第34回で扱うTestinfraによる状態検証の領域と接続します。この回では、あくまで本番切り替え前の一度きりの検証フローとして扱う範囲にとどめます。
 
 ---
 
@@ -633,7 +645,7 @@ Playbook全体をansible-playbookで実行する
 * OS世代が上がるとデフォルトのPythonインタープリタが変わる。実機検証では、Ubuntu 22.04で`/usr/bin/python3.10`、Ubuntu 24.04で`/usr/bin/python3.12`が自動検出される様子を確認した。Ansibleの自動検出に任せている場合はエラーにならない一方、`ansible_python_interpreter`を旧世代のパスに固定していると、新世代では`not found`となり実行自体が失敗することを確認した
 * OS標準のファイル配置や形式も、メジャーバージョンアップによって変わることがある。実機検証では、APTのリポジトリ定義が、Ubuntu 22.04では`/etc/apt/sources.list`に直接記載されていたのに対し、Ubuntu 24.04では同ファイルがほぼ空になり、実体が`/etc/apt/sources.list.d/ubuntu.sources`という新しいDEB822形式のファイルに移動している様子を確認した
 * Ansibleモジュール自体も、OS世代の違いをある程度吸収するよう設計されているが、万能ではない。モジュールが内部で依存するコマンドやファイルパスの前提が崩れた場合、モジュールの抽象化だけでは吸収しきれない非互換が残ることがある
-* 検証環境でベースイメージを先行して切り替え、Playbook全体を実行して失敗するタスクを洗い出したうえで、本番環境に同様の変更を適用するという運用フローが、本番切り替え前の必須プロセスになる。パッケージ単体の更新を扱った **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** よりも、確認すべき範囲が広くなる点が今回の特徴である
+* 検証環境でベースイメージを先行して切り替え、Playbook全体を実行して失敗するタスクを洗い出したうえで、本番環境に同様の変更を適用するという運用フローが、本番切り替え前に推奨される運用になる。パッケージ単体の更新を扱った **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** よりも、確認すべき範囲が広くなる点が今回の特徴である
 
 ---
 
@@ -643,13 +655,13 @@ Playbook全体をansible-playbookで実行する
 
 ## 8. 次回予告
 
-**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** では、機密情報という運用上のデータを、TerraformとAnsible Vaultのどちらに管理させるべきかを整理しました。
+**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** では、`sensitive = true`を指定してもtfstateにパスワードが平文で残ることを確認し、機密情報という運用上のデータを、TerraformとAnsible Vaultでどう分担するかを整理しました。
 
 今回はその視点を、データの管理場所からOSそのものの世代交代へ移しました。Terraform側でベースイメージを新しいOS世代に切り替える操作が、Ansibleの実行対象OSを一気に変えるという構造を確認したうえで、Pythonインタープリタの自動検出とパス固定の違い、APTのリポジトリ定義ファイルの配置・形式の変化を実機で確認しました。あわせて、Ansibleモジュール自体が持つ抽象化の限界と、検証環境を経由した段階的な切り替えフローを整理しました。
 
-次回は、第2部全体のまとめとして、ミュータブル運用とイミュータブル運用の折衷案を扱います。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から今回までで扱ってきた個別の事象を踏まえ、状態を維持し続ける運用と、使い捨てる運用を、TerraformとAnsibleの組み合わせでどう着地させるかを整理します。
+次回は、第2部全体のまとめとして、**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から今回までで扱ってきたトラブルを、リソースを直し続ける運用（ミュータブル）と作り直す運用（イミュータブル）のどちらで起きるかという軸で整理し直します。そのうえで、ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを示します。
 
-**[次回：第20回：運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**
+**[次回：第20回：運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**
 
 ---
 
@@ -680,24 +692,23 @@ Playbook全体をansible-playbookで実行する
 
 ## 9. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄、再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|`terraform apply`のlocal-exec経由でAnsibleが複数回実行される構成において、冪等性が確保されていないPlaybookがterraform apply自体の失敗を引き起こす問題。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 
 [↑ 目次に戻る](#-目次)
 
 ---
-

@@ -1,7 +1,7 @@
 ---
 title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第20回：運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案'
 description: '第11回〜第19回で扱った運用、ライフサイクル編の個別事象を、ミュータブル運用とイミュータブル運用という軸で整理し直す。両運用思想の利点・欠点、TerraformとAnsibleの役割分担の重心の変化を踏まえ、リソースの性質による使い分けという折衷案を示す。'
-pubDate: 2026-08-22
+pubDate: '2026-08-27'
 category: 'infra'
 tags: ['Ansible', 'Terraform', 'ミュータブル', 'イミュータブル', '運用設計']
 seriesId: 'ansible-terraform-part2'
@@ -13,14 +13,11 @@ relatedSeries: ''
 
 <style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
 
-
-> **🗺️ 初めての方、シリーズの全体像を知りたい方はこちら**
+> **🗺️ 初めての方・シリーズの全体像を知りたい方はこちら**
 > 
 > シリーズ全体については、以下のまとめブログで整理しています。
 > 
-> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第2部まとめブログ：TerraformとAnsibleの運用で直面する構成ズレと状態管理の問題](https://qiita.com/juehara-crypto/items/c3e95e3bec11e07bbe75)**
-
-<style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第2部まとめブログ： TerraformとAnsibleの運用で直面する構成ズレと状態管理の問題](https://qiita.com/juehara-crypto/items/c3e95e3bec11e07bbe75)**
 
 ---
 
@@ -107,7 +104,7 @@ graph TD
 
 ## 1. はじめに
 
-**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** にかけて、構築後の継続運用で直面するトラブルを一つずつ扱ってきました。手動変更によるドリフト、初期化処理によるOS設定の上書き、リソースの強制再生成、Playbookの冪等性、tfstateの整合性、パッケージアップデートによる非互換、IPアドレスの変動、機密情報の役割分担、OSのメジャーバージョンアップ。これらは個別に見ると独立した問題ですが、今回はこれらを振り返るのではなく、「なぜこの問題が起きるのか」という共通の軸で整理し直します。
+**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** にかけて、構築後の継続運用で直面するトラブルを一つずつ扱ってきました。手動変更によるドリフト、初期化処理の変更による再生成とAnsible設定の消失、リソースの強制再生成、Playbookの冪等性、tfstateの整合性、パッケージアップデートによる非互換、IPアドレスの変動、機密情報の役割分担、OSのメジャーバージョンアップ。これらは個別に見ると独立した問題ですが、今回はこれらを振り返るのではなく、「なぜこの問題が起きるのか」という共通の軸で整理し直します。
 
 その軸となるのが、「リソースを直し続けて使うか、使い捨てて入れ替えるか」という運用思想の違いです。前者を一般にミュータブル運用、後者をイミュータブル運用と呼びます。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** で扱ってきた事象の多くは、この2つの運用思想のどちらに近い性質を持つかによって整理し直すことができます。
 
@@ -129,17 +126,17 @@ graph TD
 
 |回|事象|運用思想との関係|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更ドリフトの検知|ミュータブル型（直し続けることが前提）|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更ドリフトの検知|ミュータブル型（手動変更という事象自体が、リソースを直し続けて使う運用でこそ起きるため）|
 |**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化処理変更によるリソース再生成・設定消失|イミュータブル型（作り直しが起点）|
 |**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|リソース定義変更による強制再生成|イミュータブル型（作り直しが起点）|
 |**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|Playbook複数回実行時の冪等性|両方に関わる（どちらの運用でも再実行は発生する）|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|tfstateの整合性維持|ミュータブル型寄り（長期間同じ環境を保守する前提）|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|tfstateの整合性維持|両方に関わる（チーム運用での競合はどちらの運用思想でも発生しうる）|
 |**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデート非互換|ミュータブル型（同じリソースを使い続けるからこそ発生する）|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|IPアドレス変動と接続情報の更新遅延|イミュータブル型（再生成が起点）|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|機密情報の役割分担|両方に関わる（運用思想に関わらず必要な設計）|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSメジャーバージョンアップ|両方に関わる（ベースイメージ切り替えという能動的なイミュータブル操作だが、検証・移行は段階的に進める必要がある）|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|IPアドレス変動と静的インベントリのUNREACHABLE|イミュータブル型（再生成が起点）|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|`sensitive`でもtfstateに平文で残る機密情報の扱い|両方に関わる（運用思想に関わらず必要な設計）|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSメジャーバージョンアップ|イミュータブル型（ベースイメージ切り替えという、作り直しを起点にした操作であるため）|
 
-この表を見ると、第2部全体がミュータブル運用とイミュータブル運用のどちらかに偏っていたわけではないことが分かります。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**、**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**、**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** はリソースを直し続けて使うことを前提にした問題であり、**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**、**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**、**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)** はリソースを作り直すことそのものが起点になった問題でした。そして **[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**、**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**、**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** は、どちらの運用思想を採用していても向き合う必要がある問題です。
+この表を見ると、第2部全体がミュータブル運用とイミュータブル運用のどちらかに偏っていたわけではないことが分かります。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**、**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** はリソースを直し続けて使うことを前提にした問題であり、**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**、**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**、**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**、**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** はリソースを作り直すことそのものが起点になった問題でした。そして **[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**、**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**、**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** は、どちらの運用思想を採用していても向き合う必要がある問題です。
 
 第2部が扱ってきたトラブルの背後には、こうした2つの運用思想が混在する状態が前提としてあり、その混在自体が問題の起きやすさに関わっていたことが見えてきます。次のセクションでは、まずミュータブル運用そのものの特性を整理します。
 
@@ -205,7 +202,7 @@ graph TD
 
 ```plaintext
 ミュータブル運用の場合
-　Terraform：初期構築時のみ主に使う
+　Terraform：作成後の変更頻度は低い（継続的な`plan`によるドリフト検知、`apply`もあり得る）
 　Ansible：継続的な構成管理、ドリフト是正が主役
 
 イミュータブル運用の場合
@@ -213,7 +210,7 @@ graph TD
 　Ansible：作り直すたびの初期設定投入が役割（継続的なドリフト是正の比重は下がる）
 ```
 
-ミュータブル運用では、リソースそのものは初回構築後ほとんど変わらず、Ansibleが継続的にOS内部の状態を整え続ける役割を担います。第3節で見た欠点、ドリフトの蓄積や冪等性の管理負担は、この役割の重さがそのまま表れたものです。
+ミュータブル運用では、リソースそのものは初回構築後ほとんど変わらず、Ansibleが継続的にOS内部の状態を整え続ける役割を担います。セクション3で見た欠点、ドリフトの蓄積や冪等性の管理負担は、この役割の重さがそのまま表れたものです。
 
 一方、イミュータブル運用では、リソースの作成と破棄そのものが運用の中心になり、Terraformが主役の位置に移ります。Ansibleは、作り直されたリソースに対して初期設定を投入する役割に限定され、ミュータブル運用のように長期間にわたってドリフトを是正し続けるという役割は後退します。
 
@@ -238,7 +235,7 @@ graph TD
 |ステートフルなリソース（DB、ストレージ等）|ミュータブル寄り|データの消失リスクが致命的になるため|
 |ステートレスなリソース（アプリケーションサーバー等）|イミュータブル寄り|データを保持しないため、使い捨てによる影響が小さい|
 
-ステートフルなリソースは、第4節で見たイミュータブル運用の欠点、リソース再生成に伴うデータ消失リスクをそのまま引き受けることになるため、直し続けて使うミュータブル運用の方が向いています。一方、ステートレスなリソースはデータを保持しないため、作り直しても失うものが少なく、第4節で見たイミュータブル運用の利点、ドリフトの根本回避や原因切り分けの単純化を素直に活かせます。
+ステートフルなリソースは、セクション4で見たイミュータブル運用の欠点、リソース再生成に伴うデータ消失リスクをそのまま引き受けることになるため、直し続けて使うミュータブル運用の方が向いています。一方、ステートレスなリソースはデータを保持しないため、作り直しても失うものが少なく、セクション4で見たイミュータブル運用の利点、ドリフトの根本回避や原因切り分けの単純化を素直に活かせます。
 
 この使い分けにおいて、ステートフルなリソースを保持しながら安全に再構築する具体的な設計パターン（Volumeの分離など）は、この回では扱いません。この領域は第5部、**[第47回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part5/ansible-terraform-part5-47/)** で個別に扱う内容になります。今回押さえておきたいのは、「性質によって使い分ける」という考え方そのものです。
 
@@ -254,7 +251,7 @@ graph TD
 
 この回で整理した内容を確認します。
 
-* **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** で扱った問題は、「リソースを直し続けて使うか、使い捨てて入れ替えるか」というミュータブル運用とイミュータブル運用の軸で整理し直せる。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**、**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**、**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** はミュータブル型、**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**、**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**、**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)** はイミュータブル型、**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**、**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**、**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** はどちらの運用でも向き合う必要がある問題として位置づけられる
+* **[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)** から **[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** で扱った問題は、「リソースを直し続けて使うか、使い捨てて入れ替えるか」というミュータブル運用とイミュータブル運用の軸で整理し直せる。**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**、**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** はミュータブル型、**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**、**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**、**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**、**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)** はイミュータブル型、**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**、**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**、**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)** はどちらの運用でも向き合う必要がある問題として位置づけられる
 * ミュータブル運用は、リソース内部のデータや状態がそのまま維持されるという利点を持つ一方、ドリフトの蓄積や冪等性の管理負担、パッケージアップデートによる非互換リスクを抱え続けるという欠点がある
 * イミュータブル運用は、ドリフトを根本的に回避でき原因の切り分けが単純になるという利点を持つ一方、リソース再生成によるデータ消失リスクとIPアドレス変動への追従コストを抱えるという欠点がある
 * 運用思想によって、TerraformとAnsibleのどちらが主役になるかの重心が変わる。ミュータブル運用ではAnsibleが継続的な構成管理を担い、イミュータブル運用ではTerraformがリソースの作成、破棄を頻繁に担う
@@ -282,12 +279,11 @@ graph TD
 
 ---
 
-> **🔍 今起きている症状・課題から、読むべき回を探したい方はこちら**
->
-> 全50回で扱った症状・課題を、部をまたいで1か所に集めた逆引きリファレンスがあります。
-> 症状・課題の一覧から原因の見当をつけ、該当する回のセクションまでたどれます。
->
-> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」逆引きリファレンス：全50回の症状・課題を5つの図から引く](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)**
+> **🗺️ 初めての方・シリーズの全体像を知りたい方はこちら**
+> 
+> シリーズ全体については、以下のまとめブログで整理しています。
+> 
+> → **[「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」第2部まとめブログ： TerraformとAnsibleの運用で直面する構成ズレと状態管理の問題](https://qiita.com/juehara-crypto/items/c3e95e3bec11e07bbe75)**
 
 ---
 
@@ -310,16 +306,16 @@ graph TD
 
 |回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄、再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|`terraform apply`のlocal-exec経由でAnsibleが複数回実行される構成において、冪等性が確保されていないPlaybookがterraform apply自体の失敗を引き起こす問題。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 

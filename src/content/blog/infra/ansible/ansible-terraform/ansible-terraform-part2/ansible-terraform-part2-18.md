@@ -1,7 +1,7 @@
 ---
 title: '「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」 第18回：TerraformとAnsible Vaultにおける機密情報の役割分担'
 description: 'データベースのパスワードやAPIキーなどの機密情報を、TerraformとAnsible Vaultのどちらで暗号化し、どのように管理すべきかを整理する。Terraformの`sensitive`属性が持つ限界と、機密情報の性質による責務分担の考え方、Vaultの誤用パターンとその回避策を実機で確認する。'
-pubDate: '2026-08-21'
+pubDate: '2026-08-23'
 category: 'infra'
 tags: ['Ansible', 'Terraform', 'Ansible Vault', 'tfstate', '機密情報管理']
 seriesId: 'ansible-terraform-part2'
@@ -84,7 +84,7 @@ graph TD
 
 本シリーズは、**[統合ブログ](https://qiita.com/juehara-crypto/items/5bd6720b7aaed13757f8)**、第1〜5部のまとめブログ（全5本）、第1〜50回の各回ブログ（全50本）の3階層で構成されています。**現在はこの図の下段、第2部「第11回〜第20回」のうちの第18回になります。** 統合ブログとまとめブログは、シリーズを上から順に読み進めるための入口です。
 
-また、この3階層とは別に、**[逆引きリファレンス](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)** があります。第1〜50回の各回ブログで扱った症状・課題を、部をまたいで1か所に集め、今起きている症状や解決したい課題から、該当する回へ直接たどり着けるようにしたものです。
+また、この3階層とは別に、**[逆引きリファレンス](https://qiita.com/juehara-crypto/items/bd2832993ef887e8022a)** があります。第1〜50回の各回ブログで扱った症状、課題を、部をまたいで1か所に集め、今起きている症状や解決したい課題から、該当する回へ直接たどり着けるようにしたものです。
 
 ---
 
@@ -104,7 +104,7 @@ graph TD
 
 ## 1. はじめに
 
-「暗号化しているから安全」と思っていたVaultファイルのパスワードが、チャットに平文で流れていた、という経験はないでしょうか。
+Terraform×Ansibleの環境で、パスワードの`output`に`sensitive = true`を付けていたのに、tfstateを覗いたら平文のままだった、という経験はないでしょうか。
 
 **[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)** では、リソース再生成によってIPアドレスという識別子が変わった際、その変化がインベントリや関連設定にどう波及するかを整理しました。今回扱うのは、識別子ではなく**機密情報**という、別種のデータです。
 
@@ -118,7 +118,7 @@ graph TD
 * Ansible Vaultでパスワードを暗号化しているものの、そのVaultファイルを復号するためのパスワード自体は、Vaultの管理範囲の外にある
 * インフラの認証情報とアプリケーションの機密情報を、特に区別せず同じ場所で管理していた
 
-この回で扱う問いは、「機密情報の種類・使われる場所によって、TerraformとAnsible Vaultのどちらに責務を寄せるべきか」です。あわせて、Vaultを使っていること自体が誤用の防止にはならない、いくつかの典型的な誤用パターンとその回避策も整理します。
+この回で扱う問いは、「機密情報の種類、使われる場所によって、TerraformとAnsible Vaultのどちらに責務を寄せるべきか」です。あわせて、Vaultを使っていること自体が誤用の防止にはならない、いくつかの典型的な誤用パターンとその回避策も整理します。
 
 次のセクションでは、まずTerraform側が機密情報を扱う場面を確認し、`sensitive`属性が実際には何を保護し、何を保護しないのかを実機で確認します。
 
@@ -134,10 +134,10 @@ Terraform側で機密情報を扱う場面とその構造的リスクを整理�
 
 Terraformが機密情報を扱う典型的な場面として、以下が挙げられます。
 
-* Terraformプロバイダーの接続情報・APIキー等、インフラリソースの作成・操作に直接使われる認証情報
+* Terraformプロバイダーの接続情報、APIキー等、インフラリソースの作成、操作に直接使われる認証情報
 * Terraform変数として渡すパスワード等、`sensitive = true`を指定して扱う値
 
-`sensitive = true`を指定した変数がどのように動作するかを、実機で確認します。
+`sensitive = true`を指定した変数を使った`output`が、どのように扱われるかを、実機で確認します。
 
 * **ファイル名：**`main.tf`（追記部分）
 ```hcl
@@ -153,7 +153,7 @@ output "db_password_output" {
 }
 ```
 
-### ■ 検証内容（`sensitive = true`を指定した変数が、コンソール出力とtfstateでそれぞれどう扱われるかの確認）
+### ■ 検証内容（`sensitive = true`を指定した`output`の値が、コンソール出力とtfstateでそれぞれどう扱われるかの確認）
 
 **実行コマンド**
 ```plaintext
@@ -218,11 +218,13 @@ cat terraform.tfstate | grep -A 3 db_password
 
 ### ■ 結果
 
-コンソール出力では隠れていた値が、tfstateファイルには`"value": "P@ssw0rd_demo_2026"`として平文のまま記録されていました。
+`output`で出力した値は、`sensitive = true`を指定していても、tfstateには`"value": "P@ssw0rd_demo_2026"`として平文のまま記録されていました。
 
 ここで注目したいのは、`"sensitive": true`というフラグ自体はtfstateの中にも存在しているという点です。しかし、このフラグはあくまで「この値をコンソールに表示する際は隠す」という表示制御のためのメタデータであり、tfstateへの保存内容そのものには一切関与しません。値は暗号化されることも、マスクされることもなく、フラグの隣にそのまま平文で置かれています。
 
 `sensitive = true`は、`terraform plan`や`apply`の実行ログを人が目で追う際に、誤って機密情報を画面やCIのログに流出させてしまうことを防ぐための機能です。一方で、tfstate自体が漏洩した場合、あるいはtfstateへのアクセス権限を持つ人であれば、`sensitive`の指定の有無にかかわらず、値はそのまま読み取れます。**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** でtfstateのGit管理をアンチパターンとして扱った際に触れた「機密情報が平文で含まれる」という構造は、この検証で確認した通りの実態です。
+
+なお、Terraform 1.10で導入されたephemeral値（input/output変数、ephemeral resources）や、1.11以降のwrite-only属性（対応プロバイダーのみ）は、state・planファイルのいずれにも保存されません。本検証環境（Terraform 1.15.7）はバージョン上どちらも利用可能ですが、今回検証した`variable`、`output`はこれらを使っていない、通常の構成です。
 
 `sensitive`は表示の保護であって、保存の保護ではないという点を、ここで明確にしておきます。この限界を踏まえたうえで、次のセクションではAnsible Vault側が機密情報をどう扱うかを確認し、両者の性質の違いを対比します。
 
@@ -236,7 +238,7 @@ cat terraform.tfstate | grep -A 3 db_password
 
 Ansible Vault側の機密情報管理の仕組みを整理します。
 
-Playbook内で使うパスワード・APIキーをVaultで暗号化し、実行時にVaultパスワードで復号する仕組みを、実機で確認します。
+Playbook内で使うパスワード、APIキーをVaultで暗号化し、実行時にVaultパスワードで復号する仕組みを、実機で確認します。
 
 まず、機密情報を記述したファイルを用意します。
 
@@ -310,7 +312,9 @@ target-node1               : ok=2    changed=0    unreachable=0    failed=0    s
 
 `Vault password:`のプロンプトに、暗号化時に設定したパスワードを入力すると、Playbook実行時に自動的に復号が行われ、`debug`タスクの出力に`db_password`の値がそのまま表示されました。
 
-続けて、あえて誤ったパスワードを指定して同じPlaybookを実行します。
+この`debug`タスクは検証目的で復号値をそのまま表示していますが、実務では`no_log: true`を指定するなど、実行ログへの表示を抑制する配慮が必要です。これは、Terraformの`sensitive`が防ごうとしている「表示への漏洩」と同種の問題が、Ansible側の実行ログでも起こり得ることを示しています。
+
+続けて、あえて誤ったパスワードを指定して同じPlaybookを実行します（`Vault password:`の入力時に誤った文字列を入力します）。
 
 **実行コマンド**
 ```plaintext
@@ -349,9 +353,9 @@ ERROR! Decryption failed (no vault secrets were found that could decrypt) on /ho
 
 |機密情報の種類|管理する側|理由|
 |---|---|---|
-|Terraformプロバイダーの接続情報・APIキー|Terraform側|インフラリソースの作成・操作に直接使われるため|
-|OS・ミドルウェアの管理者パスワード|Ansible Vault側|リソース内部の設定投入時に使われるため|
-|アプリケーションのDBパスワード・APIキー|Ansible Vault側|Playbookで設定ファイルに書き込む対象のため|
+|Terraformプロバイダーの接続情報、APIキー|Terraform側|インフラリソースの作成、操作に直接使われるため|
+|OS、ミドルウェアの管理者パスワード|Ansible Vault側|リソース内部の設定投入時に使われるため|
+|アプリケーションのDBパスワード、APIキー|Ansible Vault側|Playbookで設定ファイルに書き込む対象のため|
 
 この表が示す分担の考え方は、単純化すると次のようになります。
 
@@ -362,11 +366,27 @@ ERROR! Decryption failed (no vault secrets were found that could decrypt) on /ho
 
 Terraformプロバイダーの接続情報は、`terraform apply`を実行する際にTerraform自身が使う認証情報です。この情報がなければ、そもそもリソースの作成や変更ができません。Terraformの実行そのものに不可欠な情報であるため、Terraform側の変数として扱うのが自然です。
 
-一方、OS内部の管理者パスワードや、アプリケーションのDBパスワード・APIキーは、いずれもリソースが作られた後に、リソースの内部に投入される機密情報です。これらは`docker_container`や仮想マシンといったリソースそのものの作成には関与せず、Ansibleが設定ファイルへの書き込みやアプリケーションの起動処理として扱う対象です。この種の機密情報は、Ansible Vaultで暗号化し、Playbook実行時に復号して使う構成が適しています。
+一方、OS内部の管理者パスワードや、アプリケーションのDBパスワード、APIキーは、いずれもリソースが作られた後に、リソースの内部に投入される機密情報です。これらは`docker_container`や仮想マシンといったリソースそのものの作成には関与せず、Ansibleが設定ファイルへの書き込みやアプリケーションの起動処理として扱う対象です。この種の機密情報は、Ansible Vaultで暗号化し、Playbook実行時に復号して使う構成が適しています。
 
-この分担は、セクション2、3で確認した両ツールの性質の違いとも整合します。Terraformが管理するtfstateは、リソースの現在の状態を丸ごと記録するファイルであり、`sensitive`を指定しても値は平文のまま残ります。インフラの接続情報程度であればこの構造でも許容範囲に収まりますが、OSやアプリケーション内部の機密情報まで同じ場所に集約すると、tfstateという単一のファイルに機密情報が集中し、漏洩時の影響範囲が広がります。Ansible Vaultで暗号化して管理する側に寄せることで、この集中を避けられます。
+この分担は、セクション2、3で確認した両ツールの性質の違いとも整合します。Terraformが管理するtfstateは、リソースの現在の状態を丸ごと記録するファイルであり、`sensitive`を指定しても値は平文のまま残ります。tfstateに記録されるのはあくまでリソースの属性であり、Terraformプロバイダーの認証情報そのもの（`provider`ブロックの設定）が記録されるわけではありません。ただし、その認証情報を使って作成されたリソースの属性がtfstateに記録される場合はあります。OSやアプリケーション内部の機密情報まで同じ場所に集約すると、tfstateという単一のファイルに機密情報が集中し、漏洩時の影響範囲が広がります。Ansible Vaultで暗号化して管理する側に寄せることで、この集中を避けられます。
 
-なお、この判断軸はあくまで大枠の考え方であり、すべての現場に機械的に当てはまるものではありません。例えば、Terraformが管理するクラウドリソース自体にDBが含まれ、そのDBの初期パスワードをTerraform側で払い出す必要がある構成もあります。重要なのは、「その機密情報が主にどちらのツールの実行に必要とされているか」を基準に判断することであり、次のセクションでは、この判断軸を無視した場合に起きがちな誤用パターンを見ていきます。
+なお、この判断軸はあくまで大枠の考え方であり、すべての現場に機械的に当てはまるものではありません。例えば、Terraformが管理するクラウドリソース自体にDBが含まれ、そのDBの初期パスワードをTerraform側で払い出す必要がある構成もあります。重要なのは、「その機密情報が主にどちらのツールの実行に必要とされているか」を基準に判断することです。
+
+なお、本検証環境の`tls_private_key.generated`が生成する秘密鍵も、tfstateに平文で保存されています。実機で確認します。
+
+**実行コマンド**
+```plaintext
+grep -c private_key_pem terraform.tfstate
+```
+
+**▼ 実行結果**
+```plaintext
+4
+```
+
+`private_key_pem`という文字列が4箇所見つかり、秘密鍵がtfstateに記録されていることが確認できました。Terraformが生成した鍵をTerraform側で管理するという、この回の分担表の例外にあたり、鍵の生成自体をTerraformに任せる設計を取る場合は、この点も踏まえておく必要があります。
+
+次のセクションでは、この判断軸を無視した場合に起きがちな誤用パターンを見ていきます。
 
 ---
 
@@ -410,7 +430,7 @@ Vaultファイルを復号するためのパスワードを、リポジトリの
 
 ### Vaultパスワード自体の分離管理
 
-Vaultパスワードをリポジトリやチャットで共有せず、環境変数や外部のSecret Manager（具体的な導入手順はここでは扱いません）で個別に管理する方針を示します。
+Vaultパスワードをリポジトリやチャットで共有せず、パスワードファイルや外部のSecret Manager（具体的な導入手順はここでは扱いません）で個別に管理する方針を示します。`--vault-password-file`オプションで指定するパスワードファイルの場所自体を、`ANSIBLE_VAULT_PASSWORD_FILE`環境変数で指定する運用も可能です。
 
 セクション5で確認した通り、Vaultパスワードが誰でも読める場所に置かれていれば、Ansible Vaultの暗号化強度そのものは意味を持ちません。Vaultパスワードは、Vaultファイルとは完全に別の経路で管理し、必要な人だけがアクセスできる状態を保つ必要があります。`--vault-password-file`オプションでパスワードファイルを参照する運用にする場合も、そのファイル自体をリポジトリに含めない、パーミッションを適切に絞るといった扱いが前提になります。
 
@@ -437,7 +457,11 @@ db_password: !vault |
           31313837326665343733323935303033313165623863386337353664303765363163
 ```
 
-セクション3の`secrets.yml`はファイル全体を暗号化した結果、ファイルを開いても内容が一切見えない状態でした。一方`encrypt_string`は、`db_password`という単一の値だけを暗号化します。この出力をそのままYAMLファイルに組み込みます。
+セクション3の`secrets.yml`はファイル全体を暗号化した結果、ファイルを開いても内容が一切見えない状態でした。一方`encrypt_string`は、`db_password`という単一の値だけを暗号化します。
+
+なお、このコマンドは値をコマンドライン引数に直接書いているため、シェル履歴に平文が残ります。`--stdin-name`オプションを使い、標準入力経由で値を渡す方法もあります（`ansible-vault encrypt_string --stdin-name '変数名'`を実行してから値を入力し、Ctrl+Dで入力を終えます。`echo`で値を渡すと、`echo`の行が履歴に残ります）。この方法は、この回では実機で確認していません。
+
+この出力をそのままYAMLファイルに組み込みます。
 
 * **ファイル名：**`secrets_string.yml`
 ```yaml
@@ -450,7 +474,23 @@ db_password: !vault |
           31313837326665343733323935303033313165623863386337353664303765363163
 ```
 
-このファイルは、`cat`で開いても構造自体は読めます。暗号化されているのは`db_password`の値だけで、変数名（キー）は平文のままです。実際にPlaybookから読み込み、正しく復号されることを確認します。
+このファイルは、`cat`で開いても構造自体は読めます。暗号化されているのは`db_password`の値だけで、変数名（キー）は平文のままです。
+
+このファイルを読み込む検証用Playbookは、セクション3の`check_secrets.yml`の`vars_files`を`secrets_string.yml`に差し替えたものです。
+
+* **ファイル名：**`check_secrets_string.yml`
+```yaml
+---
+- hosts: target-node1
+  vars_files:
+    - secrets_string.yml
+  tasks:
+    - name: 復号された機密情報を表示
+      debug:
+        var: db_password
+```
+
+実際にPlaybookから読み込み、正しく復号されることを確認します。
 
 **実行コマンド**
 ```plaintext
@@ -481,7 +521,7 @@ target-node1               : ok=2    changed=0    unreachable=0    failed=0    s
 
 ### 管理フローの明確化
 
-Vaultファイルの責任者・更新時の承認フローを運用ルールとして明確にすることで、属人化を防ぐ方針を示します。
+Vaultファイルの責任者、更新時の承認フローを運用ルールとして明確にすることで、属人化を防ぐ方針を示します。
 
 セクション5で触れた「パスワード管理ツール代わりに使う誤用」は、技術的な対策だけでは防げません。誰がVaultファイルへの追加、更新を行えるか、更新時にレビューを挟むかといった運用ルールを明文化し、担当者が変わっても運用が継続できる状態にしておくことが必要です。`encrypt_string`による変数単位の暗号化は、この管理フローを支える技術的な土台にはなりますが、フロー自体を代替するものではありません。
 
@@ -495,9 +535,9 @@ Vaultファイルの責任者・更新時の承認フローを運用ルールと
 
 この回で整理した内容を確認します。
 
-* Terraformの`sensitive = true`は、`terraform plan`・`apply`のコンソール出力で値を隠すが、tfstate自体には平文で保存される。実機検証では、コンソール上は`<sensitive>`と表示される一方、tfstateファイルには`"value": "P@ssw0rd_demo_2026"`として平文で記録されている様子を確認した
+* Terraformの`sensitive = true`は、`terraform plan`・`apply`のコンソール出力で値を隠すが、tfstate自体には平文で保存される。実機検証では、`sensitive = true`を指定した`output`の値が、コンソール上は`<sensitive>`と表示される一方、tfstateファイルには`"value": "P@ssw0rd_demo_2026"`として平文で記録されている様子を確認した
 * Ansible Vaultは、`ansible-vault encrypt`によってファイルの内容そのものを暗号化して保存する。実機検証では、暗号化後のファイルが`$ANSIBLE_VAULT;1.1;AES256`形式のデータに変わり、正しいVaultパスワードでのみ復号できる一方、誤ったパスワードでは`ERROR! Decryption failed`となり復号自体が失敗する様子を確認した
-* 機密情報の性質によって、インフラリソースの作成・操作に直接使われる認証情報はTerraform側、OS・アプリケーション内部で使われる機密情報はAnsible Vault側という責務分担の考え方がある
+* 機密情報の性質によって、インフラリソースの作成、操作に直接使われる認証情報はTerraform側、OS、アプリケーション内部で使われる機密情報はAnsible Vault側という責務分担の考え方がある
 * Vaultをパスワード管理ツール代わりに使う、Vaultパスワード自体を平文共有する、暗号化粒度が粗いことによる非効率、といった誤用パターンは、いずれも「暗号化していれば安全」という前提を運用の実態が裏切ることで生じる
 * `ansible-vault encrypt_string`による変数単位の暗号化は、ファイル全体ではなく特定の値だけを暗号化できる。実機検証では、変数名は平文のまま、値だけが暗号化された状態でPlaybookから正しく復号できることを確認した。Vaultパスワードの分離管理、管理フローの明確化とあわせて、誤用を防ぐ具体策になる
 
@@ -513,9 +553,9 @@ Vaultファイルの責任者・更新時の承認フローを運用ルールと
 
 今回はその視点を、識別子の変化から機密情報の管理という、両ツールの責務分担そのものへ移しました。Terraformの`sensitive`属性がコンソール表示を隠す一方でtfstateには平文で残る様子と、Ansible Vaultがファイル自体を暗号化して保存し、正しいパスワードでのみ復号できる様子を実機で確認しました。あわせて、機密情報の性質による責務分担の判断軸、Vaultの典型的な誤用パターン、`encrypt_string`による変数単位の暗号化を含む回避策を整理しました。
 
-次回は、OSのメジャーバージョンアップに伴うPlaybookの互換性検証を扱います。Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなるケースを取り上げます。今回が機密情報という運用上のデータ管理を扱ったのに対し、次回は **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**（パッケージアップデート）よりさらに大きな変化であるOSメジャーバージョンアップへの対応に入ります。
+次回は、OSのメジャーバージョンアップを扱います。Terraform側でベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`でPython 3.10を固定したPlaybookが`not found`で失敗するケースと、`/etc/apt/sources.list`の形式変更を取り上げます。今回が機密情報という運用上のデータ管理を扱ったのに対し、次回は **[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**（パッケージアップデート）よりさらに大きな変化であるOSメジャーバージョンアップへの対応に入ります。
 
-**[次回：第19回：OSのメジャーバージョンアップ時におけるPlaybookの互換性検証](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**
+**[次回：第19回：ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**
 
 ---
 
@@ -546,20 +586,20 @@ Vaultファイルの責任者・更新時の承認フローを運用ルールと
 
 ## 9. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄、再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|`terraform apply`のlocal-exec経由でAnsibleが複数回実行される構成において、冪等性が確保されていないPlaybookがterraform apply自体の失敗を引き起こす問題。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 

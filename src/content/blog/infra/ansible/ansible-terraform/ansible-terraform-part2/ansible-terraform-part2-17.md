@@ -3,14 +3,13 @@ title: '「AnsibleとTerraformの連携が壊れる理由はライフサイク�
 description: 'リソース再生成によってIPアドレスが変動した際、Ansibleのインベントリや各種設定ファイル（DNS・hosts・他ノードの接続設定等）の書き換えが追いつかず、古いIPアドレスを参照したまま処理が失敗する構造を整理する。静的インベントリと動的インベントリの挙動差を実機で確認し、IPアドレス変動を関連設定に自動連動させる設計パターンを理解する。'
 pubDate: '2026-08-22'
 category: 'infra'
-tags: ['Ansible', 'Terraform', 'IPアドレス', '動的インベントリ', 'force_new_resource']
+tags: ['Ansible', 'Terraform', 'IPアドレス', '動的インベントリ', 'forces replacement']
 seriesId: 'ansible-terraform-part2'
 seriesNo: 17
 prevPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/'
 nextPost: 'https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/'
 relatedSeries: ''
 ---
-
 
 <style> table th, table td { word-break: normal; } table td:first-child { white-space: nowrap; } </style>
 
@@ -105,15 +104,15 @@ graph TD
 
 ## 1. はじめに
 
-「コンテナを作り直しただけのつもりが、Ansibleが古い接続先にアクセスしようとしてタイムアウトした」という経験はないでしょうか。
+「コンテナを作り直しただけのつもりが、Ansibleが古い接続先にアクセスしようとして接続を拒否された」という経験はないでしょうか。
 
-**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`によるパッケージバージョンの変化という、時間の経過そのものによって環境がTerraformの定義から独立して進行していく問題を扱いました。今回扱うのは、これとは別の性質を持つ変化です。時間の経過ではなく、Terraformによる**リソースの再生成**というタイミングをきっかけに、環境が変化するケースを扱います。
+**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`／`apt upgrade`によるパッケージバージョンの変化という、時間の経過そのものによって環境がTerraformの定義から独立して進行していく問題を扱いました。今回扱うのは、これとは別の性質を持つ変化です。時間の経過ではなく、Terraformによる**リソースの再生成**というタイミングをきっかけに、環境が変化するケースを扱います。
 
 このテーマは、これまでの回とも接続します。**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** では、リソース再生成に伴うIPアドレス変動そのものと、Ansibleの接続失敗という構造を整理しました。**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** では、同じくリソース再生成をきっかけに、Ansibleが投入したOS内部の設定そのものが消失する構造を確認しました。今回はこの2つの中間にある問題を扱います。OS内部の設定が消えるかどうかではなく、**IPアドレスという識別子そのものが変わる**ことによって、Ansibleのインベントリや、IPアドレスを参照している他の設定ファイルとの間に生じる「参照先のズレ」に焦点を当てます。
 
 具体的には、次のような場面です。
 
-* リソースを再生成した後、静的インベントリを書き換えずにAnsibleを実行し、古いIPアドレスへの接続がタイムアウトした
+* リソースを再生成した後、静的インベントリを書き換えずにAnsibleを実行し、古いIPアドレスへの接続が拒否された
 * 動的インベントリに切り替えていたため、Ansible自体の接続は新しいIPアドレスに追従できた。しかし、IPアドレスをホスト名で参照している他の設定ファイル（DNS・`/etc/hosts`等）だけが古いままで、そちらは追従していなかった
 * 「IPアドレスが変わった」という事実が、インベントリだけでなく、関連する複数の設定にどこまで、どう伝播していくのかが整理できていなかった
 
@@ -131,7 +130,7 @@ graph TD
 
 この回全体の前提となる構造を、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**・**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** の内容を踏まえて簡潔に整理します。
 
-Terraformが管理するリソースに対して`force_new_resource`が発生すると、リソースは一度破棄され、新しく払い出されます。コンテナ、VM、クラウドリソースのいずれであっても、この破棄、再生成のタイミングで新しいIPアドレスが割り当てられることが一般的です。IPアドレスをDockerネットワークやDHCPといった外部の仕組みが動的に決めている限り、再生成前と同じIPアドレスが再び割り当てられる保証はありません。
+Terraformが管理するリソースに、`terraform plan`で`forces replacement`と表示される変更が加わると、リソースは一度破棄され、新しく払い出されます。コンテナ、VM、クラウドリソースのいずれであっても、この破棄、再生成のタイミングで、IPアドレスが変わることがあります。IPアドレスをDockerネットワークやDHCPといった外部の仕組みが動的に決めている限り、再生成前と同じIPアドレスが再び割り当てられる保証はありません。
 
 この構造自体は、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** ですでに確認したものです。第5回では、この再生成によるIPアドレス変動が、Ansibleの接続失敗や、さらには意図しないホストへの接続という形で表面化する様子を実機で確認しました。今回はこの一般的な構造そのものを扱い直すのではなく、この構造を前提として先に進みます。
 
@@ -172,7 +171,7 @@ target-node2 ansible_host=172.20.0.3 ansible_user=ansible
 target-node3 ansible_host=172.20.0.4 ansible_user=ansible
 ```
 
-このファイルは、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で確認した通り、`local_file.ansible_inventory`が`docker_container.targets`に依存する構成になっているため、`terraform apply`一回の実行の中では自動的に最新のIPアドレスへ書き換わります。しかし、この自動更新はあくまで`apply`を実行した瞬間の内容にすぎません。書き出された後の`inventory.ini`は、その時点のIPアドレスを記録した単なる静的ファイルであり、その後にリソースが再生成されても、ファイル自身が変化を検知して追従することはありません。
+このファイルは、**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で確認した通り、`local_file.ansible_inventory`が`docker_container.targets`に依存する構成になっているため、`terraform apply`一回の実行の中では自動的に最新のIPアドレスへ書き換わります。つまり、現行の`inventory.ini`自体は、`apply`を実行するたびに最新のIPアドレスへ追従します。この回で確認したいのは、この自動更新が効かないケース、つまり`apply`実行時点の内容をコピーして手元で保持し続けた場合に何が起きるかです。以降の検証では、`inventory.ini`を退避コピーしたファイルを使い、これを手書きの静的インベントリに見立てて検証します。
 
 ### ■ 検証内容（静的インベントリを書き換えずに、リソース再生成後のIPアドレスへ接続を試みた場合の挙動確認）
 
@@ -583,7 +582,7 @@ IPアドレスが変わっているにもかかわらず、`inventory.ini.old_ba
 
 このファイルは、`terraform apply`を実行した瞬間には最新のIPアドレスを反映していますが、書き出された後は単なる静的なテキストファイルにすぎません。その後にリソースが再生成されても、ファイル自身が変化を検知して内容を書き換えることはなく、誰かが手動で更新しない限り、古い接続情報を参照し続けます。
 
-再生成の頻度が低い環境であれば、この書き換え漏れに気づく機会もあるかもしれません。しかし、運用が進み再生成の頻度が上がるほど、この手動更新のステップが抜け落ちるリスクは高まります。次のセクションでは、この手動更新そのものを不要にする、動的インベントリによる解決策を確認します。
+今回は退避コピーを使ってこの状況を再現しましたが、実務で同じ状況が起きるのは、`apply`実行時点のインベントリをコピーして使い回す、あるいは手書きで管理している場合です。再生成の頻度が上がるほどこの種の書き換え漏れのリスクが高まるという見立ては、ここでは実測していない推測です。次のセクションでは、この手動更新そのものを不要にする、動的インベントリによる解決策を確認します。
 
 ---
 
@@ -596,6 +595,8 @@ IPアドレスが変わっているにもかかわらず、`inventory.ini.old_ba
 セクション3で確認した問題に対する解決パターンを示します。
 
 **[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)** で作成した動的インベントリスクリプト`inventory.py`を、変更せずそのまま使用します。このスクリプトは、Ansibleから`--list`付きで呼び出されるたびに`terraform output -json target_nodes_ips`を実行し、その時点の最新の接続情報を取得してAnsibleが要求する形式に整形します。ファイルとして内容を保存しておく静的インベントリとは異なり、呼び出しのたびにTerraformの現在の状態を問い合わせる点が、セクション3で確認した問題への対策になります。
+
+なお、このスクリプトはAnsible実行時に`terraform`コマンドを直接呼び出す構成であり、**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)** で整理した「Ansible担当はtfstateや`terraform apply`に関与しない」という権限設計とは別の構成です。ここでは、IPアドレス変動への追従という仕組みそのものを示すことを優先し、この構成を使用します。チーム運用における権限分離の観点は第15回を参照してください。
 
 * **ファイル名：**`inventory.py`（**[第3回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-03/)**・**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** から変更なし）
 
@@ -919,7 +920,7 @@ target-node2 | SUCCESS => {
 
 この違いは、インベントリの情報がどこに保持されているかという点に起因します。静的インベントリは、ある時点でのIPアドレスをファイルという形で固定的に保持するため、その後の変化には追従できません。一方、動的インベントリは接続情報をファイルとして保存せず、実行のたびにTerraformの現在の状態（`terraform output`）を都度問い合わせます。そのため、リソースが再生成されていても、実行時点での最新のIPアドレスがそのまま使われます。
 
-手動でのファイル更新という手順そのものが不要になる点が、動的インベントリの利点です。再生成の頻度が高い環境ほど、この自動追従の効果は大きくなります。
+手動でのファイル更新という手順そのものが不要になる点が、動的インベントリの利点です。ただし、ここで追従しているのはTerraformの現在の状態（tfstate）であり、実際のリソースの状態そのものではありません。`apply`の外でコンテナが再起動、再生成された場合など、tfstateがまだその変化を反映していない状況では、`terraform output`も古い値を返します。動的インベントリが保証しているのは「常に最新のIPアドレスが分かる」ことではなく、「Terraformの状態に追従する」ことです。再生成の頻度が高い環境ほど、この追従の効果は大きくなります。
 
 ---
 
@@ -976,7 +977,7 @@ provisioner "local-exec" {
 }
 ```
 
-この方向性の考え方は、「IPアドレスが変わった」というイベントの発生時点で、影響を受けるすべての設定を一斉に更新してしまうというものです。更新済みの状態がファイルや設定として残るため、更新後は参照する側も速く動作します。一方で、更新対象が増えるほど、`apply`完了後に実行するスクリプトの数や順序管理が複雑になります。
+この方向性の考え方は、「IPアドレスが変わった」というイベントの発生時点で、影響を受けるすべての設定を一斉に更新してしまうというものです。更新対象が増えるほど、`apply`完了後に実行するスクリプトの数や順序管理が複雑になります。この`local-exec`の例は実機検証を行っておらず、構成として考えられる形の説明です。
 
 ### 方向性B：都度解決で常に最新状態を参照する
 
@@ -993,7 +994,7 @@ provisioner "local-exec" {
 |再生成の頻度|低い（更新処理の実行回数が少なく済む）|高い（都度解決の方が更新漏れのリスクを避けられる）|
 |関連設定の複雑さ|シンプル（更新対象が少なく、スクリプトの管理がしやすい）|複雑（都度解決に任せた方が、個別の更新ロジックを持たずに済む）|
 
-再生成が頻繁に起こり、かつ関連設定がシンプルな環境では、方向性Bの都度解決が扱いやすくなります。逆に、再生成がまれにしか起こらず、関連する設定が複雑な環境では、都度の問い合わせコストをかけるよりも、変化が起きたタイミングでまとめて更新する方向性Aの方が扱いやすくなります。
+再生成が頻繁に起こり、かつ関連設定が複雑な環境では、方向性Bの都度解決が扱いやすくなります。逆に、再生成がまれにしか起こらず、関連設定がシンプルな環境では、都度の問い合わせコストをかけるよりも、変化が起きたタイミングでまとめて更新する方向性Aの方が扱いやすくなります。
 
 この2つの方向性は、セクション3、4で確認した静的インベントリと動的インベントリの対比と、同じ構造を持っています。ファイルとして状態を固定するか、実行のたびに現在の状態を問い合わせるか、という選択は、インベントリという1つの参照先に限らず、IPアドレスを参照するあらゆる箇所に共通する設計判断です。
 
@@ -1007,7 +1008,7 @@ provisioner "local-exec" {
 
 この回で整理した内容を確認します。
 
-* Terraformによるリソース再生成では、多くの環境でIPアドレスが変わる。この変動自体は **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で確認済みの構造であり、今回はこの構造を前提として、IPアドレス変動が関連設定にどう波及するかに焦点を当てた
+* Terraformによるリソース再生成では、IPアドレスが変わることがある（本検証環境では、元のアドレスが空いていると同じアドレスが再利用されることもある）。この変動自体は **[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)** で確認済みの構造であり、今回はこの構造を前提として、IPアドレス変動が関連設定にどう波及するかに焦点を当てた
 * 静的インベントリは、`terraform apply`一回の実行の中では自動追従するが、その後のリソース再生成には追従できない。実機検証では、再生成後に古いインベントリを使うと接続が失敗する様子を確認した
 * 動的インベントリは、実行のたびにTerraformの現在の状態を都度取得するため、ファイルの更新という手順そのものが不要になる。実機検証では、リソース再生成後、ファイルの更新を挟まずそのまま新しいIPアドレスへ接続できる様子を確認した
 * IPアドレスを参照している箇所はAnsibleのインベントリだけとは限らない。ホスト名でリソース同士が参照し合う構成がある場合、DNSや`/etc/hosts`等の更新も連動して行う必要があり、この参照切れはAnsibleの実行結果だけを見ていては気づけない
@@ -1021,13 +1022,13 @@ provisioner "local-exec" {
 
 ## 8. 次回予告
 
-**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`によるパッケージバージョンの変化という、時間の経過そのものによって環境がTerraformの定義から独立して進行していく問題を整理しました。
+**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)** では、`apt update`／`apt upgrade`によるパッケージバージョンの変化という、時間の経過そのものによって環境がTerraformの定義から独立して進行していく問題を整理しました。
 
 今回はその視点を、時間経過による変化から、リソース再生成というタイミングに伴う変化へ移しました。**[第5回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part1/ansible-terraform-part1-05/)**・**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)** で確認したリソース再生成の構造を踏まえたうえで、IPアドレスという識別子そのものが変わることによる参照先のズレに焦点を当て、実機検証では静的インベントリが古いIPアドレスを参照し続けて接続が失敗する様子と、動的インベントリがファイルの更新を待たず新しいIPアドレスに自動追従する様子を確認しました。あわせて、インベントリの外側にあるDNSや設定ファイルへの連動、イベント駆動と都度解決という2つの自動化の方向性を整理しました。
 
-次回は、TerraformとAnsible Vaultにおける機密情報の役割分担を扱います。データベースのパスワードやAPIキーといった機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかという運用設計を取り上げます。今回がIPアドレスという識別子の変化を扱ったのに対し、次回は機密情報の管理という、運用上の責務設計の問題に入ります。
+次回は、機密情報の扱いを取り上げます。Terraformで`sensitive = true`を指定しても、tfstateにはパスワードが平文で残ることを確認し、TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンを整理します。今回がIPアドレスという識別子の変化を扱ったのに対し、次回は機密情報の管理という、運用上の責務設計の問題に入ります。
 
-**[次回：第18回：TerraformとAnsible Vaultにおける機密情報の役割分担](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**
+**[次回：第18回：sensitive = trueを指定してもtfstateにパスワードが平文で残る理由](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**
 
 ---
 
@@ -1052,27 +1053,26 @@ provisioner "local-exec" {
 
 ---
 
-
 [↑ 目次に戻る](#-目次)
 
 ---
 
 ## 9. 連載一覧：「AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった」
 
-### 第2部：運用・ライフサイクル編
+### 第2部：運用、ライフサイクル編
 
-|回数|テーマ・記事タイトル|概要|
+|回数|テーマ、記事タイトル|概要|
 |---|---|---|
-|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|手動変更による構成ドリフトの検知と同期手法|構築後に手動やAnsibleで変更したOS内部の状態を、Terraformの`plan`が検知できず、インフラの管理状態に不整合が出る問題。ドリフトシリーズとの接続を示す。|
-|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|`terraform apply`実行時における初期化処理とOS設定の上書き問題|Terraform側で初期化スクリプトやコンテナ起動定義を書き換えて再実行した際、Ansibleによって設定済みのOS内部状態が初期化される課題。|
-|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|コード修正に伴うリソースの強制再生成（リビルド）リスク|TerraformのHCL定義変更によって、リソースが「更新」ではなく「破棄、再生成」され、Ansibleが投入した内部データが消失する課題。|
-|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|複数回実行時におけるAnsible Playbookの冪等性の確保|`terraform apply`のlocal-exec経由でAnsibleが複数回実行される構成において、冪等性が確保されていないPlaybookがterraform apply自体の失敗を引き起こす問題。|
-|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|チーム運用における状態管理ファイル（tfstate）の整合性維持|Ansibleを実行するオペレーターと、Terraformを管理するエンジニア間で、Terraformの状態管理ファイルに競合が発生するリスク。チーム運用での役割分担設計も整理する。|
-|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|パッケージアップデートに伴う環境の非互換性への対応|運用中に`apt update`等を実行した結果、OSのライブラリやミドルウェアのバージョンが上がり、Terraformの定義と矛盾が生じるケース。|
-|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソース再生成時におけるIPアドレス変動と接続情報の更新遅延|リソース（コンテナ/VM）の再生成に伴ってIPアドレスが変更された際、Ansible用のインベントリや各種設定ファイルの書き換えが追いつかない問題。|
-|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|TerraformとAnsible Vaultにおける機密情報の役割分担|データベースのパスワードやAPIキーなどの機密情報を、両ツールのどちらで暗号化し、どのように管理すべきかの運用設計。Vault誤用パターンと回避策も整理する。|
-|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|OSのメジャーバージョンアップ時におけるPlaybookの互換性検証|Terraform側でベースイメージ（例：Ubuntu 22.04→24.04）を変更した際、Ansibleの古い独自モジュールやシェルコマンドが機能しなくなる課題。|
-|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：ミュータブル運用とイミュータブル運用の折衷案|状態（データ）を維持し続ける運用（ミュータブル）と、使い捨てる運用（イミュータブル）を、両ツールの組み合わせでどのように着地させるかの最適解。|
+|**[第11回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-11/)**|Terraformのplanが、手動やAnsibleによるOS内部の変更を検知できない理由―tfstateの管理範囲と、--check --diffによる補完|構築後に手動やAnsibleで変更したOS内部の状態は、tfstateの管理範囲の外にあるため、Terraformの`plan`では検知できない。Ansibleの`--check --diff`による補完と、インフラ層、OS層を二軸で確認、同期する手順を整理する。ドリフトシリーズとの接続を示す。|
+|**[第12回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-12/)**|初期化スクリプト・コンテナ起動定義を変更してterraform applyを再実行すると、コンテナが作り直されてAnsibleの設定が消える理由―uploadブロックのforces replacementと、初期化処理とAnsibleの役割分離|初期化スクリプトやコンテナ起動定義の変更で`forces replacement`が発生し、リソースが破棄、再生成されて、Ansibleが設定済みのOS内部状態が消える課題。初期化処理とAnsibleの役割分離で消失の影響を小さくする設計を整理する。|
+|**[第13回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-13/)**|HCLの1行の変更でコンテナが破棄、再生成され、Ansibleの設定が消える理由―更新と再生成の分かれ目と、terraform planの「-/+」「forces replacement」による事前判定|HCLの1行の変更でも、属性によっては「更新」ではなく「破棄、再生成」となり、Ansibleが投入した設定が消える。`terraform plan`の`~`と`-/+`、`forces replacement`の注記から、`apply`前に再生成を見分ける方法を整理する。|
+|**[第14回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-14/)**|local-execで再実行されたAnsibleが失敗し、terraform applyが止まる理由―冪等でないcommand（mkdir）と、--check --diffでは検出できない限界|`local-exec`経由でAnsibleが複数回実行される構成で、冪等でないPlaybookが2回目の実行で失敗し、`terraform apply`自体の失敗につながる問題。専用モジュールへの置き換えと、`--check --diff`では検出できない限界を整理する。冪等性シリーズ、レガシーPlaybook引き継ぎの知識を実践に適用する回として位置づける。|
+|**[第15回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-15/)**|複数人が別々のディレクトリでterraform applyしたtfstateを上書きすると記録が消え、出力名の変更だけでAnsibleのスクリプトも止まる理由―state lockingの守備範囲と、中間ファイルによる分離|複数人が別々のディレクトリで扱ったtfstateを上書きすると記録が消える問題と、Ansible担当がtfstateを直接参照すると、出力名の変更だけでスクリプトが止まる問題。state lockingの守備範囲と、中間ファイルによる分離、apply実行権限の設計を整理する。|
+|**[第16回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-16/)**|apt update／apt upgradeでパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する理由―Terraformのイメージ固定の範囲外と、aptモジュールでのバージョン指定|運用中に`apt update`、`apt upgrade`でパッケージが更新されると、バージョンを前提にしたAnsible Playbookが失敗する問題。Terraformのイメージ固定が及ばない範囲と、`apt`モジュールでのバージョン指定による制御を整理する。|
+|**[第17回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-17/)**|リソースの再生成でIPアドレスが変わると、静的インベントリのままではAnsibleがUNREACHABLEになる理由―動的インベントリで追従できる範囲と、DNS・hostsなど追従できない参照|リソースの再生成でIPアドレスが変わると、書き換えていない静的インベントリではAnsibleが`UNREACHABLE`になる問題。動的インベントリで追従できる範囲と、DNSや`/etc/hosts`など追従できない参照を整理する。|
+|**[第18回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-18/)**|sensitive = trueを指定してもtfstateにパスワードが平文で残る理由―Ansible Vaultとの責務分担と、Vaultの誤用パターン|`sensitive = true`を指定しても、`output`の値がtfstateに平文で残る問題。TerraformとAnsible Vaultの責務分担と、Vaultの誤用パターンと回避策を整理する。|
+|**[第19回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-19/)**|ベースイメージをUbuntu 22.04から24.04に切り替えると、ansible_python_interpreterでPython 3.10を固定したPlaybookがnot foundで失敗する理由―自動検出との違いと、/etc/apt/sources.listの形式変更|ベースイメージをUbuntu 22.04から24.04に切り替えると、`ansible_python_interpreter`をパスで固定したPlaybookが`not found`で失敗する問題。自動検出との違いと、`/etc/apt/sources.list`の形式変更、標準モジュールの抽象化の限界を整理する。|
+|**[第20回](https://juehara-crypto.github.io/blog/infra/ansible/ansible-terraform/ansible-terraform-part2/ansible-terraform-part2-20/)**|運用編まとめ：第11〜19回のトラブルは、リソースを直し続ける運用と作り直す運用のどちらで起きるか―ステートフルならミュータブル、ステートレスならイミュータブルという使い分け|第11〜19回のトラブルを、リソースを直し続けるミュータブル運用と、作り直すイミュータブル運用の軸で整理する。ステートフルならミュータブル、ステートレスならイミュータブルという使い分けを着地点として示す。|
 
 ---
 
