@@ -18,7 +18,7 @@ relatedSeries: ''
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第2部まとめブログ：GitOpsパイプラインで「見たものだけが、承認したときだけ届く」仕組みを積み上げる** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第2部まとめブログ：GitOpsパイプラインで「見たものだけが、承認したときだけ届く」仕組みを積み上げる](https://qiita.com/juehara-crypto/items/d9d3f586edc8d9a27ce7)**
 
 ---
 
@@ -2138,7 +2138,7 @@ Terraformでは、設定の行を消すことと、値を空にすることが�
 >
 > シリーズ全体については、以下のまとめブログで整理しています。
 >
-> → **「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第2部まとめブログ：GitOpsパイプラインで「見たものだけが、承認したときだけ届く」仕組みを積み上げる** **※近日公開予定**
+> → **[「Ansible×TerraformをGitOpsで回す」〜Terraformプロバイダーを問わない構成管理の自動化〜 第2部まとめブログ：GitOpsパイプラインで「見たものだけが、承認したときだけ届く」仕組みを積み上げる](https://qiita.com/juehara-crypto/items/d9d3f586edc8d9a27ce7)**
 
 ---
 
