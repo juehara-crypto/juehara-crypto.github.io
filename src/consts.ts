@@ -2,4 +2,4 @@
 // You can import this data from anywhere in your site by using the `import` keyword.
 
 export const SITE_TITLE = "juehara-crypto's Tech Blog";
-export const SITE_DESCRIPTION = 'Ansible・インフラ・自動化をテーマにした技術ブログ';
+export const SITE_DESCRIPTION = 'Linux・Ansible・Terraformなどインフラの仕組みを、検証環境で実際に動かして確かめながら解説する技術ブログ。エンジニアの思考・戦略・キャリアについても発信しています。';
