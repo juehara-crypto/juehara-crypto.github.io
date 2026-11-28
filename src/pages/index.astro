@@ -1,48 +1,261 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+// 新着記事に出す本数
+const RECENT_COUNT = 5;
+
+// 新着記事：公開日の新しい順に、上から RECENT_COUNT 本
+const recentPosts = (await getCollection('blog'))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+	.slice(0, RECENT_COUNT);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+		<style>
+			/* 記事一覧（/blog/）と同じ幅にそろえる */
+			main {
+				width: 960px;
+			}
+			hr {
+				margin: 2.5rem 0;
+			}
+			/* スマートフォンなどで表が横にはみ出すときは、表だけ横にスクロールできる */
+			.table-wrap {
+				overflow-x: auto;
+			}
+			table {
+				width: 100%;
+				/* 列の幅を下の col の指定で固定し、本文の幅に収める */
+				table-layout: fixed;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+			}
+			th,
+			td {
+				border: 1px solid rgb(var(--gray-light));
+				padding: 0.6rem 0.8rem;
+				text-align: left;
+				vertical-align: top;
+				/* 長い文は、列の幅で折り返す（区切りの位置に関係なく折り返せるようにする） */
+				word-break: normal;
+				line-break: auto;
+				overflow-wrap: anywhere;
+				white-space: normal;
+			}
+			th {
+				background: rgb(var(--gray-light));
+			}
+			/* 列の幅 */
+			col.area {
+				width: 7em;
+			}
+			col.series {
+				width: 40%;
+			}
+			col.series-wide {
+				width: 50%;
+			}
+			col.date {
+				width: 9em;
+			}
+			.note {
+				font-size: 0.9rem;
+				color: rgb(var(--gray));
+			}
+		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
+			<h1>{SITE_TITLE}</h1>
 			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This template
-				serves as a lightweight, minimally-styled starting point for anyone looking to build a personal
-				website, blog, or portfolio with Astro.
+				インフラの「仕組み」を、検証環境で実際に動かして確かめながら解説する技術ブログです。あわせて、エンジニアとして現場で価値を発揮するための「思考・戦略・キャリア」についても発信しています。
 			</p>
 			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
+				全記事は<a href="/blog/">記事一覧</a>から、書いている人については<a href="/about/">About</a>からご覧ください。
 			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
+
+			<hr />
+
+			<h2>■インフラ関連</h2>
 			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
+				サーバー・ネットワークから自動化まで、<strong>インフラエンジニアとしての「実務スキル」</strong>に関する連載シリーズです。現場で即戦力となるための、<strong>「仕組みの理解と自動化・運用」にフォーカスしたカテゴリ</strong>です。
+			</p>
+			<div class="table-wrap">
+				<table>
+					<colgroup>
+						<col class="area" />
+						<col class="series" />
+						<col />
+					</colgroup>
+					<thead>
+						<tr>
+							<th>対象領域</th>
+							<th>シリーズ名</th>
+							<th>概要</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>自動化</td>
+							<td>
+								<a href="https://qiita.com/juehara-crypto/items/8513670962f4e1868526"
+									>Ansibleが理解できない理由はLinuxにあった</a
+								>（Qiita）
+							</td>
+							<td>Linux/Shellの仕組みから紐解く、堅牢なPlaybook設計術。</td>
+						</tr>
+						<tr>
+							<td>自動化</td>
+							<td>
+								<a href="/blog/">「Ansibleは何度実行しても安全」は本当か 〜設計・運用・テストで壊れ方を辿る〜</a>
+							</td>
+							<td>
+								冪等性・構成ドリフト・テストという3つの盲点から、Ansible運用が壊れる構造と対処の優先順位を体系化する設計力。
+							</td>
+						</tr>
+						<tr>
+							<td>自動化</td>
+							<td>
+								<a href="/blog/">AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった</a>
+							</td>
+							<td>
+								Ansible単体では起きない、Terraformとの連携が生むドリフトを実機で再現し、外部ツール境界のライフサイクルを制御する設計力。
+							</td>
+						</tr>
+						<tr>
+							<td>自動化</td>
+							<td>
+								<a href="/blog/">Ansible×TerraformをGitOpsで回す 〜Terraformプロバイダーを問わない構成管理の自動化〜</a>
+							</td>
+							<td>
+								Gitを「唯一の真実」として、パイプラインの関門・機密情報の置き場所・ドリフトの検知と収束までをAnsible×Terraform×GitOpsで一本化し、Terraformのプロバイダー（Docker・AWS・GCPなど）を問わず運用する設計力。
+							</td>
+						</tr>
+						<tr>
+							<td>ログ解析</td>
+							<td>
+								<a href="https://qiita.com/juehara-crypto/items/0b55d3dbaca36f29b85b"
+									>ログで固まらないsed/awk超入門</a
+								>（Qiita）
+							</td>
+							<td>膨大なテキストデータから必要な情報を瞬時に抽出する解析技術。</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="note">
+				※（Qiita）と付いていないシリーズは、このブログの<a href="/blog/">記事一覧</a>でシリーズ名を開くと、部ごとに第1回から読めます。
 			</p>
 			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
+				インフラエンジニアの真価は、単に「ツールを使えること」だけではありません。<strong>「仕組みを理解し、不確実性を制御できること」で決まります。</strong>
 			</p>
+
+			<hr />
+
+			<h2>■エンジニアキャリア関連／ポエム</h2>
+			<p>
+				エンジニアとして現場で価値を発揮するための<strong>「思考・戦略・キャリア」</strong>に関する連載シリーズです。技術ではなく、<strong>「どう考え、どう動くか」にフォーカスしたカテゴリ</strong>です。
+			</p>
+			<div class="table-wrap">
+				<table>
+					<colgroup>
+						<col class="series-wide" />
+						<col />
+					</colgroup>
+					<thead>
+						<tr>
+							<th>シリーズ名</th>
+							<th>概要</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>
+								<a href="https://qiita.com/juehara-crypto/items/5258df143f211dd80683"
+									>「技術だけでは評価されない」現場で生き残るエンジニア戦略まとめ【全連載ガイド】</a
+								>（Qiita）
+							</td>
+							<td>技術力だけでは評価されない現場で、エンジニアとしてどう考え、どう動くかをまとめた連載の入口。</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<p>
+				エンジニアの価値は、「どれだけコードを書いたか」では決まりません。<strong>どれだけ「問題を解決したか」で決まります。</strong>
+			</p>
+
+			<hr />
+
+			<h2>■プログラミング</h2>
+			<p>Java／Struts2を使って、画面設計から実装までを進めながら学ぶ連載シリーズです。</p>
+			<div class="table-wrap">
+				<table>
+					<colgroup>
+						<col class="series-wide" />
+						<col />
+					</colgroup>
+					<thead>
+						<tr>
+							<th>シリーズ名</th>
+							<th>概要</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>
+								<a href="https://qiita.com/juehara-crypto/items/5eed22b909069cd4cb9d"
+									>Struts2連載まとめ＆今後の記事リンクポータル</a
+								>（Qiita）
+							</td>
+							<td>
+								画面設計・MVC構成から、タグライブラリ、バリデーション、データ層設計（DAO／DTO／Service）、アクション層・Interceptorまでを、Vol.ごとの総まとめと逆引きリファレンスで整理しています。
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<hr />
+
+			<h2>■新着記事</h2>
+			<div class="table-wrap">
+				<table>
+					<colgroup>
+						<col class="date" />
+						<col />
+					</colgroup>
+					<thead>
+						<tr>
+							<th>公開日</th>
+							<th>記事</th>
+						</tr>
+					</thead>
+					<tbody>
+						{
+							recentPosts.map((post) => (
+								<tr>
+									<td>
+										<FormattedDate date={post.data.pubDate} />
+									</td>
+									<td>
+										<a href={`/blog/${post.id}/`}>{post.data.title}</a>
+									</td>
+								</tr>
+							))
+						}
+					</tbody>
+				</table>
+			</div>
+			<p><a href="/blog/">記事一覧をすべて見る →</a></p>
 		</main>
 		<Footer />
 	</body>
