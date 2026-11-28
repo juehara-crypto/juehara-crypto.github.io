@@ -1,113 +1,231 @@
 ---
-import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
-import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 
-const posts = (await getCollection('blog')).sort(
-	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+// ===== 表示の設定（表示名や並びは、ここだけ書き換えれば変えられる） =====
+
+// 大きな見出し（src/content/blog の直下のフォルダ名と、表示名）
+const CATEGORIES = [
+	{ key: 'infra', label: '■インフラ関連' },
+	{ key: 'poem', label: '■エンジニアキャリア関連／ポエム' },
+	{ key: 'programming', label: '■プログラミング' },
+];
+
+// 中くらいの見出し（大きな見出しの下のフォルダ名と、表示名）
+const TOPICS: Record<string, string> = {
+	ansible: 'Ansible',
+	linux: 'Linux',
+};
+
+// シリーズ（折りたたみ）と、その中のグループ（部・編）
+// folder は「大きな見出し/中くらいの見出し/」より後ろのフォルダの場所
+const SERIES = [
+	{
+		category: 'infra',
+		topic: 'ansible',
+		title: '「Ansibleは何度実行しても安全」は本当か 〜設計・運用・テストで壊れ方を辿る〜',
+		groups: [
+			{ folder: 'ansible-idempotency', label: '冪等性編：Ansibleは本当に冪等なのか 〜冪等性が崩れる構造と設計〜' },
+			{ folder: 'ansible-drift', label: 'ドリフト編：Ansibleは冪等なのに、なぜサーバは壊れていくのか' },
+			{ folder: 'ansible-molecule', label: 'Molecule編：AnsibleのPlaybookが壊れる理由はテスト文化にあった' },
+		],
+	},
+	{
+		category: 'infra',
+		topic: 'ansible',
+		title: 'AnsibleとTerraformの連携が壊れる理由はライフサイクルにあった',
+		groups: [
+			{ folder: 'ansible-terraform/ansible-terraform-part1', label: '第1部：環境構築・連携編で直面する9つのトラブル' },
+			{ folder: 'ansible-terraform/ansible-terraform-part2', label: '第2部：TerraformとAnsibleの運用で直面する構成ズレと状態管理の問題' },
+			{ folder: 'ansible-terraform/ansible-terraform-part3', label: '第3部：Ansible×Terraform連携におけるトラブルシューティングとデバッグの体系' },
+			{ folder: 'ansible-terraform/ansible-terraform-part4', label: '第4部：Ansible×Terraform連携における改善・CI/CD自動化の体系' },
+			{ folder: 'ansible-terraform/ansible-terraform-part5', label: '第5部：Terraformライフサイクル破壊編で明らかになった「認識の不可視性」の構造' },
+		],
+	},
+	{
+		category: 'infra',
+		topic: 'ansible',
+		title: 'Ansible×TerraformをGitOpsで回す 〜Terraformプロバイダーを問わない構成管理の自動化〜',
+		groups: [
+			{ folder: 'ansible-gitops/ansible-gitops-part1', label: '第1部：「Gitが唯一の真実」を成り立たせる前提の設計' },
+			{ folder: 'ansible-gitops/ansible-gitops-part2', label: '第2部：GitOpsパイプラインで「見たものだけが、承認したときだけ届く」仕組みを積み上げる' },
+			{ folder: 'ansible-gitops/ansible-gitops-part3', label: '第3部：機密情報は「どこに置くか」だけでなく「どこに残るか」で設計する' },
+			{ folder: 'ansible-gitops/ansible-gitops-part4', label: '第4部：ドリフトの区別・検知・収束・例外・予防を「最後に適用したコミット」でつなぐ' },
+		],
+	},
+];
+
+// ===== ここから下は、並べ替えと組み立ての処理 =====
+
+const posts = await getCollection('blog');
+
+// 記事の場所（id）の辞書の順。ファイル名の番号が0埋めのため、回の順になる
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+// シリーズに属さない記事は、新しい順
+const byDateDesc = (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+
+// 「第N回：」（全角・半角のコロン、または空白）より後ろだけを表示する
+function postLabel(title: string) {
+	const m = title.match(/第(\d+)回[：:\s]\s*/);
+	if (!m || m.index === undefined) return title;
+	return `第${m[1]}回　${title.slice(m.index + m[0].length)}`;
+}
+
+const sections = CATEGORIES.map((cat) => {
+	const catPosts = posts.filter((p) => p.id.startsWith(`${cat.key}/`));
+
+	// 中くらいの見出し（フォルダが3階層以上ある記事の、2つ目のフォルダ）
+	const topicKeys = [
+		...new Set(
+			catPosts
+				.map((p) => p.id.split('/'))
+				.filter((parts) => parts.length >= 3)
+				.map((parts) => parts[1]),
+		),
+	].sort();
+
+	const topics = topicKeys.map((topicKey) => {
+		const topicPosts = catPosts.filter((p) => p.id.startsWith(`${cat.key}/${topicKey}/`));
+		const used = new Set();
+
+		const series = SERIES.filter((s) => s.category === cat.key && s.topic === topicKey)
+			.map((s) => {
+				const groups = s.groups
+					.map((g) => {
+						const prefix = `${cat.key}/${topicKey}/${g.folder}/`;
+						const groupPosts = topicPosts.filter((p) => p.id.startsWith(prefix)).sort(byId);
+						groupPosts.forEach((p) => used.add(p.id));
+						return { label: g.label, posts: groupPosts };
+					})
+					.filter((g) => g.posts.length > 0);
+				const count = groups.reduce((n, g) => n + g.posts.length, 0);
+				return { title: s.title, groups, count };
+			})
+			.filter((s) => s.count > 0);
+
+		// シリーズに当てはまらない記事（短編記事など）
+		const loose = topicPosts.filter((p) => !used.has(p.id)).sort(byDateDesc);
+
+		return { label: TOPICS[topicKey] ?? topicKey, series, loose };
+	});
+
+	// 大きな見出しのフォルダの直下にある記事
+	const loose = catPosts.filter((p) => p.id.split('/').length === 2).sort(byDateDesc);
+
+	return { label: cat.label, topics, loose, total: catPosts.length };
+}).filter((c) => c.total > 0); // 記事が無い見出しは出さない
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
 			main {
 				width: 960px;
 			}
-			ul {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 2rem;
-				list-style-type: none;
-				margin: 0;
+			.category {
+				margin-bottom: 3rem;
+			}
+			.category h2 {
+				font-size: 1.6rem;
+				padding-bottom: 0.3rem;
+				border-bottom: 2px solid rgb(var(--gray-light));
+			}
+			.topic h3 {
+				font-size: 1.25rem;
+				margin: 1.5rem 0 0.5rem;
+			}
+			details.series {
+				margin: 0.5rem 0 0.5rem 0.5rem;
+			}
+			details.series summary {
+				cursor: pointer;
+				font-weight: bold;
+				padding: 0.4rem 0;
+			}
+			details.group {
+				margin: 0.5rem 0 0.5rem 1rem;
+			}
+			details.group summary {
+				cursor: pointer;
+				font-weight: bold;
+				color: rgb(var(--gray-dark));
+				padding: 0.3rem 0;
+			}
+			.post-list {
+				list-style: none;
+				margin: 0 0 0 2rem;
 				padding: 0;
 			}
-			ul li {
-				width: calc(50% - 1rem);
+			.post-list li {
+				margin: 0.25rem 0;
 			}
-			ul li * {
+			.post-list a {
 				text-decoration: none;
-				transition: 0.2s ease;
 			}
-			ul li:first-child {
-				width: 100%;
-				margin-bottom: 1rem;
-				text-align: center;
-			}
-			ul li:first-child img {
-				width: 100%;
-			}
-			ul li:first-child .title {
-				font-size: 2.369rem;
-			}
-			ul li img {
-				margin-bottom: 0.5rem;
-				border-radius: 12px;
-			}
-			ul li a {
-				display: block;
-			}
-			.title {
-				margin: 0;
-				color: rgb(var(--black));
-				line-height: 1;
-			}
-			.date {
-				margin: 0;
-				color: rgb(var(--gray));
-			}
-			ul li a:hover h4,
-			ul li a:hover .date {
+			.post-list a:hover {
 				color: rgb(var(--accent));
-			}
-			ul a:hover img {
-				box-shadow: var(--box-shadow);
-			}
-			@media (max-width: 720px) {
-				ul {
-					gap: 0.5em;
-				}
-				ul li {
-					width: 100%;
-					text-align: center;
-				}
-				ul li:first-child {
-					margin-bottom: 0;
-				}
-				ul li:first-child .title {
-					font-size: 1.563em;
-				}
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<section>
-				<ul>
-					{
-						posts.map((post) => (
-							<li>
-								<a href={`/blog/${post.id}/`}>
-									{post.data.heroImage && (
-										<Image width={720} height={360} src={post.data.heroImage} alt="" />
-									)}
-									<h4 class="title">{post.data.title}</h4>
-									<p class="date">
-										<FormattedDate date={post.data.pubDate} />
-									</p>
-								</a>
-							</li>
-						))
-					}
-				</ul>
-			</section>
+			{
+				sections.map((cat) => (
+					<section class="category">
+						<h2>{cat.label}</h2>
+						{cat.topics.map((topic) => (
+							<div class="topic">
+								<h3>{topic.label}</h3>
+								{topic.series.map((s) => (
+									<details class="series">
+										<summary>
+											{s.title}（全{s.count}回）
+										</summary>
+										{s.groups.map((g) => (
+											<details class="group">
+												<summary>
+													{g.label}（{g.posts.length}回）
+												</summary>
+												<ul class="post-list">
+													{g.posts.map((p) => (
+														<li>
+															<a href={`/blog/${p.id}/`}>{postLabel(p.data.title)}</a>
+														</li>
+													))}
+												</ul>
+											</details>
+										))}
+									</details>
+								))}
+								{topic.loose.length > 0 && (
+									<ul class="post-list">
+										{topic.loose.map((p) => (
+											<li>
+												<a href={`/blog/${p.id}/`}>{postLabel(p.data.title)}</a>
+											</li>
+										))}
+									</ul>
+								)}
+							</div>
+						))}
+						{cat.loose.length > 0 && (
+							<ul class="post-list">
+								{cat.loose.map((p) => (
+									<li>
+										<a href={`/blog/${p.id}/`}>{postLabel(p.data.title)}</a>
+									</li>
+								))}
+							</ul>
+						)}
+					</section>
+				))
+			}
 		</main>
 		<Footer />
 	</body>
