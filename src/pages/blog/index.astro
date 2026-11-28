@@ -4,14 +4,15 @@ import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import '../../styles/pages.css';
 
 // ===== 表示の設定（表示名や並びは、ここだけ書き換えれば変えられる） =====
 
 // 大きな見出し（src/content/blog の直下のフォルダ名と、表示名）
 const CATEGORIES = [
-	{ key: 'infra', label: '■インフラ関連' },
-	{ key: 'poem', label: '■エンジニアキャリア関連／ポエム' },
-	{ key: 'programming', label: '■プログラミング' },
+	{ key: 'infra', label: 'インフラ関連' },
+	{ key: 'poem', label: 'エンジニアキャリア関連／ポエム' },
+	{ key: 'programming', label: 'プログラミング' },
 ];
 
 // 中くらいの見出し（大きな見出しの下のフォルダ名と、表示名）

@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import '../styles/pages.css';
 
 // 新着記事に出す本数
 const RECENT_COUNT = 5;
@@ -85,7 +86,7 @@ const recentPosts = (await getCollection('blog'))
 
 			<hr />
 
-			<h2>■インフラ関連</h2>
+			<h2>インフラ関連</h2>
 			<p>
 				サーバー・ネットワークから自動化まで、<strong>インフラエンジニアとしての「実務スキル」</strong>に関する連載シリーズです。現場で即戦力となるための、<strong>「仕組みの理解と自動化・運用」にフォーカスしたカテゴリ</strong>です。
 			</p>
@@ -161,7 +162,7 @@ const recentPosts = (await getCollection('blog'))
 
 			<hr />
 
-			<h2>■エンジニアキャリア関連／ポエム</h2>
+			<h2>エンジニアキャリア関連／ポエム</h2>
 			<p>
 				エンジニアとして現場で価値を発揮するための<strong>「思考・戦略・キャリア」</strong>に関する連載シリーズです。技術ではなく、<strong>「どう考え、どう動くか」にフォーカスしたカテゴリ</strong>です。
 			</p>
@@ -195,7 +196,7 @@ const recentPosts = (await getCollection('blog'))
 
 			<hr />
 
-			<h2>■プログラミング</h2>
+			<h2>プログラミング</h2>
 			<p>Java／Struts2を使って、画面設計から実装までを進めながら学ぶ連載シリーズです。</p>
 			<div class="table-wrap">
 				<table>
@@ -226,7 +227,7 @@ const recentPosts = (await getCollection('blog'))
 
 			<hr />
 
-			<h2>■新着記事</h2>
+			<h2>新着記事</h2>
 			<div class="table-wrap">
 				<table>
 					<colgroup>

@@ -1,0 +1,232 @@
+/*
+  装飾用のCSS（Home・Blog・Aboutの3ページだけで読み込む）
+  参考：Easton Blog（https://eastondev.com/blog/ja/series/astro-guide/）
+  global.css には触らない。このファイルと、各ページの import の1行を消せば元に戻る。
+*/
+
+/* 色（ここを変えれば全体の色が変わる） */
+:root {
+  --deco-bg: #FBF7EF;          /* 背景：クリーム色 */
+  --deco-ink: #15120F;         /* 濃い文字：見出し */
+  --deco-text: #3A342D;        /* 本文の文字 */
+  --deco-muted: #756F66;       /* 薄い文字：表の見出し・概要 */
+  --deco-line: #EADFCE;        /* 線：薄いベージュ */
+  --deco-band: #F6EEE2;        /* 帯：Blogの部の行 */
+  --deco-accent: #C94A2E;      /* リンク：オレンジ寄りの赤 */
+  --deco-accent-from: #E85D3F; /* 見出しの縦棒：上の色 */
+  --deco-accent-to: #E7A552;   /* 見出しの縦棒：下の色 */
+}
+
+/* 1. ページ全体：クリーム色の背景（左上にオレンジ、右上に緑のにじみ）と、日本語のフォント */
+html body {
+  background-color: var(--deco-bg);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(232, 93, 63, 0.08), rgba(0, 0, 0, 0) 544px),
+    radial-gradient(circle at 82% 16%, rgba(111, 140, 115, 0.12), rgba(0, 0, 0, 0) 512px);
+  background-size: auto;
+  background-repeat: no-repeat;
+  color: var(--deco-text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
+}
+
+/* 2. 見出し：h2 の左にオレンジのグラデーションの縦棒 */
+main h1 {
+  color: var(--deco-ink);
+  font-size: 2.1em;
+}
+main h2 {
+  color: var(--deco-ink);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+main h2::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 1.1em;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, var(--deco-accent-from), var(--deco-accent-to));
+}
+
+/* 3. リンク：下線を消し、マウスを乗せたときだけ下線 */
+main a {
+  color: var(--deco-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+main a:hover {
+  text-decoration: underline;
+}
+
+/* 4. 区切り線：薄いベージュの細い線 */
+main hr {
+  border: none;
+  border-top: 1px solid var(--deco-line);
+}
+
+/* 5. 表（Home）：マス目の線をやめ、1行ずつ角の丸い白い箱に分ける */
+main .table-wrap table {
+  border-collapse: separate;
+  border-spacing: 0 10px;
+  border: none;
+}
+main .table-wrap table th {
+  background: transparent;
+  border: none;
+  color: var(--deco-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.9rem;
+}
+main .table-wrap table td {
+  background: rgba(255, 255, 255, 0.72);
+  border: none;
+  border-top: 1px solid var(--deco-line);
+  border-bottom: 1px solid var(--deco-line);
+  padding: 0.9rem;
+}
+main .table-wrap table td:first-child {
+  border-left: 1px solid var(--deco-line);
+  border-radius: 14px 0 0 14px;
+}
+main .table-wrap table td:last-child {
+  border-right: 1px solid var(--deco-line);
+  border-radius: 0 14px 14px 0;
+  color: var(--deco-muted);
+}
+
+/* 6. ヘッダー：半透明のクリーム色、影なし、下に細い線。今いるページの下線はオレンジ */
+/*    ヘッダーとフッターは部品側の指定が強いので、!important（優先して効かせる印）を付けている */
+body > header {
+  background: rgba(251, 247, 239, 0.85) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--deco-line) !important;
+}
+body > header a.active {
+  border-bottom-color: var(--deco-accent-from) !important;
+}
+
+/* 7. フッター：灰色の帯をやめて背景と同じ色にし、上に細い線 */
+body > footer {
+  background: none !important;
+  color: var(--deco-muted) !important;
+  border-top: 1px solid var(--deco-line) !important;
+}
+
+/* 8. Blog（記事一覧）：シリーズを角の丸い白い箱に、部を薄いベージュの帯に */
+/*    大見出しの下の灰色の線を消す（ページ側の指定が強いので !important） */
+main .category h2 {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+main .topic h3 {
+  color: var(--deco-ink);
+}
+main .topic details.series {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--deco-line);
+  border-radius: 14px;
+  padding: 0.2rem 1rem;
+  margin: 0.7rem 0;
+}
+/* 開いているシリーズは、枠をオレンジに */
+main .topic details.series[open] {
+  border-color: var(--deco-accent-from);
+}
+/* 標準の「▶」を消して、オレンジの細い矢印に。開くと下向きになる */
+main .topic details summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+main .topic details summary::-webkit-details-marker {
+  display: none;
+}
+main .topic details summary::before {
+  content: "";
+  flex-shrink: 0;
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid var(--deco-accent-from);
+  border-bottom: 2px solid var(--deco-accent-from);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+main .topic details[open] > summary::before {
+  transform: rotate(45deg);
+}
+main .topic details.series > summary {
+  padding: 0.7rem 0;
+  color: var(--deco-ink);
+}
+main .topic details.group {
+  margin: 0.4rem 0 0.4rem 1rem;
+}
+main .topic details.group > summary {
+  background: var(--deco-band);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  color: var(--deco-ink);
+  font-weight: 600;
+}
+/* 記事の行：太字をやめ、マウスを乗せると行がうっすらオレンジに */
+main .topic .post-list {
+  margin: 0.4rem 0 0.6rem 1.6rem;
+}
+main .topic .post-list li {
+  margin: 0;
+}
+main .topic .post-list a {
+  display: block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 500;
+  color: var(--deco-text);
+}
+main .topic .post-list a:hover {
+  background: rgba(232, 93, 63, 0.07);
+  color: var(--deco-accent);
+  text-decoration: none;
+}
+/* 9. About：本文を角の丸い白い箱に入れ、箇条書きの点をオレンジの丸に。英語の日付は表示しない */
+/*    記事と同じ枠（BlogPost.astro）の指定が強いところは !important */
+main .prose {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--deco-line);
+  border-radius: 14px;
+  padding: 2rem 2.5rem !important;
+}
+main .prose .date {
+  display: none !important;
+}
+main .prose .title {
+  margin-bottom: 1.5rem;
+}
+main .prose .title h1 {
+  margin: 0 0 1rem;
+}
+main .prose h2 {
+  margin-top: 2rem;
+  font-size: 1.35em;
+}
+main .prose ul {
+  list-style: none;
+  padding-left: 0.4rem;
+}
+main .prose li {
+  position: relative;
+  padding-left: 1.2rem;
+  margin: 0.4rem 0;
+}
+main .prose li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.75em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--deco-accent-from);
+}
